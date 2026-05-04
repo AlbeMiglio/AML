@@ -175,6 +175,8 @@ cython_debug/
 
 
 datasets/
+data/Linemod_preprocessed/
+data/trained_checkpoints/
 weights/
 archive/old_checkpoints/
 wandb/
