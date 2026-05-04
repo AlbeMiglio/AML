@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torchvision.models as models
-from utils.rotation import rot6d_to_matrix
+from common.rotation import rot6d_to_matrix
 
 class RGBD_FusionPredictor(nn.Module):
     def __init__(self):

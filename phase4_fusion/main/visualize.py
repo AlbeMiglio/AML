@@ -7,10 +7,10 @@ import random
 import trimesh
 from ultralytics import YOLO
 
-from models.RGBD_FusionPredictor import RGBD_FusionPredictor
-from data.linemod_dataset import LineModDataset
-from data.split import prepare_data_and_splits
-from utils.rgbd_utils import (
+from phase4_fusion.main.model import RGBD_FusionPredictor
+from phase3_baseline.dataset import LineModDataset
+from common.data_split import prepare_data_and_splits
+from phase4_fusion.main.rgbd_utils import (
     load_info_cache,
     fetch_sample_info,
     convert_depth_to_meters,

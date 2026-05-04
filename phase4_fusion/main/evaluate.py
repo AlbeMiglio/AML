@@ -8,9 +8,9 @@ import pandas as pd
 from ultralytics import YOLO
 from tqdm import tqdm
 
-from models.RGBD_FusionPredictor import RGBD_FusionPredictor
-from data.split import prepare_data_and_splits
-from utils.rgbd_utils import (
+from phase4_fusion.main.model import RGBD_FusionPredictor
+from common.data_split import prepare_data_and_splits
+from phase4_fusion.main.rgbd_utils import (
     load_info_cache,
     fetch_sample_info,
     convert_depth_to_meters,
@@ -21,7 +21,7 @@ from utils.rgbd_utils import (
     select_detection_for_object,
     get_object_metadata,
 )
-from utils.pose_metrics import pose_error
+from common.pose_metrics import pose_error
 
 def get_annotation(gt_cache, obj_id, sample_id):
     ann_list = gt_cache[obj_id][sample_id]

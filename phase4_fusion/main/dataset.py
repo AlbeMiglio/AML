@@ -7,7 +7,7 @@ import trimesh
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-from utils.rgbd_utils import (
+from phase4_fusion.main.rgbd_utils import (
     convert_depth_to_meters,
     square_crop_coords,
     prepare_rgb_tensor,

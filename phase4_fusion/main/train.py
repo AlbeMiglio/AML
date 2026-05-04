@@ -9,10 +9,10 @@ import os
 from datetime import datetime
 import wandb
 
-from models.RGBD_FusionPredictor import RGBD_FusionPredictor
-from data.LineModDatasetRGBD import LineModDatasetRGBD
-from utils.add_loss import ADDLoss
-from data.split import prepare_data_and_splits
+from phase4_fusion.main.model import RGBD_FusionPredictor
+from phase4_fusion.main.dataset import LineModDatasetRGBD
+from phase4_fusion.main.add_loss import ADDLoss
+from common.data_split import prepare_data_and_splits
 
 def log_and_print(message, log_file):
     print(message)
