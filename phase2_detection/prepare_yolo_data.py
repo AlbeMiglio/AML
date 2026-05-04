@@ -12,7 +12,7 @@ if __package__ in {None, ""}:
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 
-from data.split import prepare_data_and_splits
+from common.data_split import prepare_data_and_splits
 
 # Configuration
 
