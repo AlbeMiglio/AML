@@ -10,10 +10,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import wandb
 
-from models.PosePredictor import PosePredictor
-from data.linemod_dataset import LineModDataset
-from data.split import prepare_data_and_splits
-from utils.resNetUtils import rotation_loss, translation_loss
+from phase3_baseline.model import PosePredictor
+from phase3_baseline.dataset import LineModDataset
+from common.data_split import prepare_data_and_splits
+from phase3_baseline.losses import rotation_loss, translation_loss
 
 
 def quaternion_angle_error(pred, target):

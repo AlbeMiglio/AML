@@ -12,7 +12,10 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
-from utils.pose_metrics import pose_error
+from common.pose_metrics import pose_error
+from phase3_baseline.model import PosePredictor
+from phase3_baseline.dataset import LineModDataset
+from common.data_split import prepare_data_and_splits
 
 
 def project_3d_box(img, R, T, K, obj_info, color=(0, 255, 0)):
@@ -157,10 +160,6 @@ def generate_terminal_report(val_dataset, pose_net, yolo_model, models_info, ROO
 
 
 def run_inspector():
-    from models.PosePredictor import PosePredictor
-    from data.linemod_dataset import LineModDataset
-    from data.split import prepare_data_and_splits
-
     ROOT_DATASET = "datasets/linemod/Linemod_preprocessed"
     YOLO_PATH = 'weights/yolo/best.pt'
     RESNET_PATH = "weights/baseline/pose_resnet50_baseline.pth"
