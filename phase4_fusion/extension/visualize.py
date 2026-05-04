@@ -13,7 +13,7 @@ from phase4_fusion.extension.model import FusionResNetCustom
 
 
 
-MODEL_PATH = "weights/resnet10_custom/pose_rgbd_custom_1ch_best.pth"
+MODEL_PATH = "weights/fusion_ext/resnet10/pose_rgbd_custom_1ch_best.pth"
 print("Using custom ResNet-10 model.")
 
 from common.data_split import prepare_data_and_splits

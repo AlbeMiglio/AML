@@ -56,7 +56,7 @@ def project_3d_box(img, R, T, K, obj_info, color=(0, 255, 0), thickness=2):
 
 def main():
     ROOT_DATASET = "datasets/linemod/Linemod_preprocessed"
-    RGBD_MODEL_PATH = "weights/resnet50_18/pose_rgbd_fusion_best.pth"
+    RGBD_MODEL_PATH = "weights/fusion_main/pose_rgbd_fusion_best.pth"
     YOLO_PATH = 'weights/yolo/best.pt'
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 

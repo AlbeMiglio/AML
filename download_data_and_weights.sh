@@ -8,9 +8,8 @@ echo "   SETUP PIPELINE: LINEMOD, YOLO & WEIGHTS"
 echo "============================================="
 
 # 0. Verifica preliminare
-if [ ! -f "data/prepare_yolo_data.py" ]; then
-    echo "❌ ERRORE: Non trovo il file 'prepare_yolo_data.py' dentro la cartella 'data/'!"
-    echo "   Assicurati di aver creato la cartella 'data' e messo lì il file python."
+if [ ! -f "phase2_detection/prepare_yolo_data.py" ]; then
+    echo "❌ ERRORE: Non trovo 'phase2_detection/prepare_yolo_data.py'!"
     exit 1
 fi
 
@@ -39,23 +38,22 @@ echo "🏋️  [5/6] Scaricamento pesi dei modelli..."
 
 # Definiamo i percorsi delle cartelle pesi
 WEIGHTS_ROOT="weights"
-mkdir -p "$WEIGHTS_ROOT/5layer_cnn" \
-         "$WEIGHTS_ROOT/resnet10_custom" \
-         "$WEIGHTS_ROOT/resnet50_18" \
+mkdir -p "$WEIGHTS_ROOT/fusion_ext/5layer_cnn" \
+         "$WEIGHTS_ROOT/fusion_ext/resnet10" \
+         "$WEIGHTS_ROOT/fusion_main" \
          "$WEIGHTS_ROOT/baseline" \
          "$WEIGHTS_ROOT/yolo"
 
 echo "   -> Scaricamento pesi in corso..."
 
-# NOTA: Sostituisci gli URL qui sotto con gli ID diretti dei file se gdown --fuzzy dovesse fallire
-# 1. Pesi 5-layer CNN
-gdown --fuzzy "https://drive.google.com/file/d/1oMGwPRnoMcQx5kUbokZaxkA1cNOybp2u/view?usp=drive_link" -O "$WEIGHTS_ROOT/5layer_cnn/pose_rgbd_custom_1ch_best.pth" || echo "⚠️  Fallito download CNN"
+# 1. Pesi 5-layer CNN (archived, alternative backbone)
+gdown --fuzzy "https://drive.google.com/file/d/1oMGwPRnoMcQx5kUbokZaxkA1cNOybp2u/view?usp=drive_link" -O "$WEIGHTS_ROOT/fusion_ext/5layer_cnn/pose_rgbd_custom_1ch_best.pth" || echo "⚠️  Fallito download CNN"
 
-# 2. Pesi custom resnet-10
-gdown --fuzzy "https://drive.google.com/file/d/1rBXKMibpuEOz3eX1uIJcWiItgY-lbx1N/view?usp=drive_link" -O "$WEIGHTS_ROOT/resnet10_custom/pose_rgbd_custom_1ch_best.pth" || echo "⚠️  Fallito download Resnet10"
+# 2. Pesi custom ResNet-10 (phase4_fusion/extension)
+gdown --fuzzy "https://drive.google.com/file/d/1rBXKMibpuEOz3eX1uIJcWiItgY-lbx1N/view?usp=drive_link" -O "$WEIGHTS_ROOT/fusion_ext/resnet10/pose_rgbd_custom_1ch_best.pth" || echo "⚠️  Fallito download Resnet10"
 
-# 3. Pesi resnet50/resnet18
-gdown --fuzzy "https://drive.google.com/file/d/1K2uOzuRh4HCnHc0pHMGryWBRcXgQMRXZ/view?usp=drive_link" -O "$WEIGHTS_ROOT/resnet50_18/pose_rgbd_checkpoint.pth" || echo "⚠️  Fallito download Resnet50/18"
+# 3. Pesi ResNet50+ResNet18 (phase4_fusion/main)
+gdown --fuzzy "https://drive.google.com/file/d/1K2uOzuRh4HCnHc0pHMGryWBRcXgQMRXZ/view?usp=drive_link" -O "$WEIGHTS_ROOT/fusion_main/pose_rgbd_fusion_best.pth" || echo "⚠️  Fallito download Resnet50/18"
 
 # 4. Pesi baseline
 gdown --fuzzy "https://drive.google.com/file/d/1dvU2vq0fWRbVnVBO0RfM_IEXhQUXLXQE/view?usp=drive_link" -O "$WEIGHTS_ROOT/baseline/pose_resnet50_baseline_best.pth" || echo "⚠️  Fallito download Baseline"
