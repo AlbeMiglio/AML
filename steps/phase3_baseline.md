@@ -9,7 +9,7 @@
 
 ---
 
-## Architettura: `PosePredictor` (`models/PosePredictor.py`)
+## Architettura: `PosePredictor` (`phase3_baseline/model.py`)
 
 **Backbone:** ResNet-50 con pesi ImageNet (`IMAGENET1K_V1`). Il layer `fc` originale viene sostituito con `nn.Identity()` per esporre il feature vector da 2048 dimensioni.
 
@@ -37,7 +37,7 @@ La testa quaternione mantiene il nome `regression_head` (invariato rispetto alla
 
 ## Input Pipeline
 
-**Crop:** la `LineModDataset` (`data/linemod_dataset.py`) fa un crop quadrato centrato sul bounding box GT: `side = max(w, h)`, crop da `(center_x - side/2, center_y - side/2)` a `(center_x + side/2, center_y + side/2)`. Il crop esce dall'immagine se l'oggetto è vicino ai bordi — PIL gestisce automaticamente con zero-padding.
+**Crop:** la `LineModDataset` (`phase3_baseline/dataset.py`) fa un crop quadrato centrato sul bounding box GT: `side = max(w, h)`, crop da `(center_x - side/2, center_y - side/2)` a `(center_x + side/2, center_y + side/2)`. Il crop esce dall'immagine se l'oggetto è vicino ai bordi — PIL gestisce automaticamente con zero-padding.
 
 **Resize:** 224×224 bicubic.
 
@@ -52,7 +52,7 @@ Nessun flip geometrico, nessuna rotazione dell'immagine: queste augmentation cam
 
 ---
 
-## Loss Function (`trainBaseline.py`)
+## Loss Function (`phase3_baseline/train.py`)
 
 La loss combina rotazione e traslazione:
 
@@ -60,7 +60,7 @@ La loss combina rotazione e traslazione:
 Loss = rotation_loss(q_pred, q_gt) + λ_T · MSE(t_pred, t_gt)
 ```
 
-### Rotation loss (`utils/resNetUtils.py:rotation_loss`)
+### Rotation loss (`phase3_baseline/losses.py:rotation_loss`)
 
 ```
 L_rot = 1 - |q_pred · q_gt|
@@ -68,13 +68,13 @@ L_rot = 1 - |q_pred · q_gt|
 
 Basata sul prodotto scalare assoluto tra quaternioni normalizzati. Il valore assoluto rende la loss invariante all'ambiguità di segno del quaternione (−q e +q rappresentano la stessa rotazione). Valore in [0, 1]: 0 = rotazione perfetta, 1 = rotazione opposta.
 
-### Translation loss (`utils/resNetUtils.py:translation_loss`)
+### Translation loss (`phase3_baseline/losses.py:translation_loss`)
 
 ```
 L_trans = MSE(t_pred, t_gt)
 ```
 
-MSE standard tra traslazioni in **metri**. Il dataset `linemod_dataset.py` restituisce `T` in mm (raw da `gt.yml`); la conversione a metri avviene in `trainBaseline.py` con `gt_T_m = batch["T"].to(DEVICE) / 1000.0`.
+MSE standard tra traslazioni in **metri**. Il dataset `phase3_baseline/dataset.py` restituisce `T` in mm (raw da `gt.yml`); la conversione a metri avviene in `phase3_baseline/train.py` con `gt_T_m = batch["T"].to(DEVICE) / 1000.0`.
 
 ### Peso λ_T
 
@@ -82,7 +82,7 @@ MSE standard tra traslazioni in **metri**. Il dataset `linemod_dataset.py` resti
 
 ---
 
-## Training (`trainBaseline.py`)
+## Training (`phase3_baseline/train.py`)
 
 ### Hyperparameters
 
@@ -118,7 +118,7 @@ Dall'epoca 11 in poi il backbone è scongelato con LR ridotto di un fattore `BAC
 ### Avvio
 
 ```bash
-python trainBaseline.py
+python -m phase3_baseline.train
 ```
 
 Il checkpoint viene salvato ad ogni epoca in `pose_resnet50_baseline_checkpoint.pth`. Il miglior modello (min val loss) viene salvato in `pose_resnet50_baseline_best.pth`.
@@ -149,7 +149,7 @@ ADD-S sostituisce la corrispondenza punto-per-punto con la **distanza al punto p
 ADD-S = mean_i( min_j( || p_pred_i − p_gt_j || ) )
 ```
 
-**Implementazione in `evaluate_metricsBaseline.py`:**
+**Implementazione in `phase3_baseline/evaluate.py`:**
 - `SYMMETRIC_OBJ_IDS = {10, 11}` — oggetti che usano ADD-S
 - `adds_distance(pts, R_gt, T_gt, R_pred, T_pred)` — calcola ADD-S
 - `add_distance(pts, R_gt, T_gt, R_pred, T_pred)` — calcola ADD
@@ -161,7 +161,7 @@ Con N=500 punti, ADD-S crea una matrice di distanze pairwise `(500, 500)` per og
 
 ---
 
-## Evaluation (`evaluate_metricsBaseline.py`)
+## Evaluation (`phase3_baseline/evaluate.py`)
 
 Lo script valuta il modello su 4 modalità per isolare le diverse sorgenti di errore:
 
@@ -177,7 +177,7 @@ Lo script valuta il modello su 4 modalità per isolare le diverse sorgenti di er
 **Traslazione predetta:** output del `tvec_head` convertito in mm (`* 1000.0`) per confronto coerente con le distanze ADD in mm.
 
 ```bash
-python evaluate_metricsBaseline.py
+python -m phase3_baseline.evaluate
 ```
 
 Output: tabella con 4 colonne per ogni classe + media globale, con asterisco (*) per le classi con ADD-S.
@@ -190,7 +190,7 @@ Output: tabella con 4 colonne per ogni classe + media globale, con asterisco (*)
 In training si usa il GT bounding box per croppare l'oggetto. In evaluation end-to-end si usa il bbox predetto da YOLO. Questo introduce un dominio gap inevitabile: il YOLO può dare bbox imprecise o mancate. La modalità "YOLO + T_gt" quantifica esattamente questo gap sulla componente di rotazione.
 
 ### Conversione quaternione → matrice di rotazione
-`scipy.spatial.transform.Rotation.from_quat(q).as_matrix()` — la convenzione di scipy per i quaternioni è `(x, y, z, w)`, coerente con `matrix_to_quaternion` in `utils/resNetUtils.py`.
+`scipy.spatial.transform.Rotation.from_quat(q).as_matrix()` — la convenzione di scipy per i quaternioni è `(x, y, z, w)`, coerente con `matrix_to_quaternion` in `phase3_baseline/losses.py`.
 
 ### Traslazione GT
 La traslazione GT in `gt.yml` (`cam_t_m2c`) è in **millimetri**. Il dataset la restituisce in mm; il training la converte in metri per la loss. L'evaluator usa mm per il calcolo ADD (coerente con i punti PLY, anch'essi in mm).

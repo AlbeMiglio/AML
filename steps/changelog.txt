@@ -158,3 +158,40 @@ PHASE 4 — RGB-D Fusion
 [MODIFY] visualize_resultRGBD_custom.py — fix R unpacking (stesso schema)
 
 ================================================================================
+
+--------------------------------------------------------------------------------
+REFACTOR — Struttura repo phase-oriented (8 commit)
+--------------------------------------------------------------------------------
+
+[REFACTOR] Intera repo → layout phase-oriented
+  Layout precedente: file Python sparsi al root e in models/, utils/, data/ senza
+  indicazione della phase di appartenenza. Naming misto camelCase/snake_case.
+  Layout nuovo:
+    common/           — codice condiviso (data_split, pose_metrics, rotation, yolo_metadata)
+    phase2_detection/ — YOLO: prepare, train, evaluate
+    phase3_baseline/  — RGB baseline: model, dataset, losses, train, evaluate, visualize
+    phase4_fusion/main/      — RGB-D ResNet-50+18: model, dataset, rgbd_utils, add_loss, train, evaluate, visualize
+    phase4_fusion/extension/ — RGB-D ResNet-50+10: model, dataset, rgbd_utils, train, evaluate, visualize
+    archive/          — variante 5-layer CNN mai integrata nell'active pipeline
+  MOTIVAZIONE: rendere implicitamente ovvia la phase di appartenenza di ogni file
+  dalla sola lettura del path.
+
+[RENAME] models/FusionResNetCustom.py: classe RGBD_FusionPredictor_custom → FusionResNetCustom
+  Il file si chiamava FusionResNetCustom.py ma la classe interna era RGBD_FusionPredictor_custom.
+  Rinomina allineata: class FusionResNetCustom(nn.Module). Solo il nome esterno e cambiato;
+  gli attributi self.* sono invariati, checkpoint compatibili (strict=True verificato).
+
+[ADD] common/yolo_metadata.py — estratto da utils/rgbd_utils.py
+  Funzioni select_detection_for_object e get_object_metadata usate da 4 script
+  (phase4 main + extension, evaluate + visualize) spostate in common/ per DRY.
+
+[ARCHIVE] models/RGBD_FusionPredictor_custom.py → archive/RGBD_FusionPredictor_custom_5layer_cnn.py
+  Variante 5-layer CNN del branch depth, mai importata dall'active pipeline.
+  Conservata per evidenza esplorativa, con docstring che spiega il contesto.
+
+[MODIFY] download_data_and_weights.sh — path canonici weights/
+  mkdir -p e destinazioni dei download aggiornate ai nuovi subdir:
+    weights/fusion_main/, weights/fusion_ext/resnet10/, weights/fusion_ext/5layer_cnn/
+  Check iniziale aggiornato da data/prepare_yolo_data.py a phase2_detection/prepare_yolo_data.py.
+
+================================================================================

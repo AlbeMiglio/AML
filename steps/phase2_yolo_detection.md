@@ -58,7 +58,7 @@ dove `depth_scale` è letto da `info.yml` per ogni immagine. I pixel con valore 
 
 ## Split train / val / test
 
-Generato con `data/split.py`, seed fisso `random_seed=42`, proporzioni **60% / 20% / 20%**.
+Generato con `common/data_split.py`, seed fisso `random_seed=42`, proporzioni **60% / 20% / 20%**.
 
 Lo split è identico per tutti gli script del progetto (baseline, RGB-D, YOLO): stessa chiamata a `prepare_data_and_splits(ROOT_DATASET)` garantisce che train/val/test non si sovrappongano tra i diversi modelli.
 
@@ -70,7 +70,7 @@ Lo split è identico per tutti gli script del progetto (baseline, RGB-D, YOLO): 
 
 **Motivazione della scelta:** YOLO11n è il modello più leggero della famiglia YOLO11, adatto per un task di detection 2D su immagini di dimensioni contenute (640×480) con 15 classi. L'obiettivo qui è ottenere bbox accurate per croppare l'oggetto — non massimizzare la mAP di detection in sé. Un modello nano garantisce inferenza rapida durante l'evaluation della posa.
 
-**Formato dataset YOLO** (generato da `data/prepare_yolo_data.py`):
+**Formato dataset YOLO** (generato da `phase2_detection/prepare_yolo_data.py`):
 ```
 datasets/linemod/linemod_yolo_format/
 ├── images/{train,val,test}/  # copie delle RGB
@@ -79,7 +79,7 @@ datasets/linemod/linemod_yolo_format/
 └── data.yaml                 # nc=15, path ai tre split
 ```
 
-**Hyperparameters di training** (`train_yolo.py`):
+**Hyperparameters di training** (`phase2_detection/train.py`):
 
 | Parametro  | Valore   |
 |------------|----------|
@@ -95,9 +95,9 @@ datasets/linemod/linemod_yolo_format/
 ## Training
 
 ```bash
-python train_yolo.py
+python -m phase2_detection.train
 # oppure con override:
-python train_yolo.py --epochs 100 --batch 16 --device cpu
+python -m phase2_detection.train --epochs 100 --batch 16 --device cpu
 ```
 
 I pesi vengono salvati da Ultralytics in `runs/detect/linemod_yolo_run/weights/best.pt`.
@@ -113,14 +113,14 @@ I pesi pre-allenati sono scaricabili via `download_data_and_weights.sh` in `weig
 - **AP@0.5:0.95**: media di AP calcolata su soglie IoU da 0.5 a 0.95 con step 0.05. Metrica più stringente, standard COCO.
 - **mAP**: media delle AP su tutte le classi.
 
-### Script: `evaluate_yolo.py`
+### Script: `phase2_detection/evaluate.py`
 
 Valuta il modello pre-allenato sul **test split** (disgiunto da train e val) e produce un report per-classe.
 
 ```bash
-python evaluate_yolo.py
+python -m phase2_detection.evaluate
 # con opzioni:
-python evaluate_yolo.py --split val --device cpu
+python -m phase2_detection.evaluate --split val --device cpu
 ```
 
 Output:
@@ -147,7 +147,7 @@ Il CSV `results/yolo_test_metrics.csv` contiene una riga per classe + una riga `
 
 **Prerequisito:** il dataset YOLO deve essere già preparato:
 ```bash
-python data/prepare_yolo_data.py
+python -m phase2_detection.prepare_yolo_data
 ```
 
 ---
@@ -156,8 +156,8 @@ python data/prepare_yolo_data.py
 
 La visualizzazione delle bbox predette da YOLO è integrata negli script di visualizzazione della posa:
 
-- `visualize_resultBaseline.py` — disegna in **blu** la bbox YOLO, in verde la pose GT, in rosso la pose predetta.
-- `visualize_resultRGBD.py` — identico, con in più le metriche ADD/dT/dR a schermo.
+- `phase3_baseline/visualize.py` — disegna in **blu** la bbox YOLO, in verde la pose GT, in rosso la pose predetta.
+- `phase4_fusion/main/visualize.py` — identico, con in più le metriche ADD/dT/dR a schermo.
 
 Entrambi mostrano la bbox YOLO come elemento di ispezione del primo stadio della pipeline.
 
@@ -175,4 +175,4 @@ Il YOLO non è valutato come sistema standalone: il suo output (bbox) alimenta i
 
 ### Mapping class_id
 `class_id_yolo = obj_id - 1` (LineMod usa IDs da 1, YOLO da 0).
-Tutti gli script che interpretano le predizioni YOLO usano `int(box.cls) != target_cls` dove `target_cls = obj_id - 1` (es. `utils/rgbd_utils.py:100-109`, `select_detection_for_object`).
+Tutti gli script che interpretano le predizioni YOLO usano `int(box.cls) != target_cls` dove `target_cls = obj_id - 1` (es. `common/yolo_metadata.py`, `select_detection_for_object`).

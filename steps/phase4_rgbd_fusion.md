@@ -26,9 +26,9 @@ meta_info (8D)   →  meta_encoder   → f_meta  (64D)   ┘
 
 | File | RGB branch | Depth branch | Depth input |
 |---|---|---|---|
-| `RGBD_FusionPredictor.py` | ResNet-50 ImageNet | ResNet-18 ImageNet | 3ch (replicated) |
-| `RGBD_FusionPredictor_custom.py` | ResNet-50 ImageNet | custom 5-layer CNN | 1ch |
-| `FusionResNetCustom.py` | ResNet-50 ImageNet | custom ResNet-10 | 1ch |
+| `phase4_fusion/main/model.py` | ResNet-50 ImageNet | ResNet-18 ImageNet | 3ch (replicated) |
+| `phase4_fusion/extension/model.py` | ResNet-50 ImageNet | custom ResNet-10 | 1ch |
+| `archive/RGBD_FusionPredictor_custom_5layer_cnn.py` | ResNet-50 ImageNet | custom 5-layer CNN | 1ch (archived) |
 
 ### Meta-branch
 
@@ -43,7 +43,7 @@ Vettore 8D `[cx/W, cy/H, w/W, h/H, fx/1000, fy/1000, px/W, py/H]` — normalizza
 **Soluzione — 6D representation:**
 
 ```python
-# utils/rotation.py
+# common/rotation.py
 def rot6d_to_matrix(r6d):  # (B, 6) → (B, 3, 3)
     a1, a2 = r6d[:, :3], r6d[:, 3:]
     b1 = F.normalize(a1, p=2, dim=1)
@@ -63,7 +63,7 @@ def rot6d_to_matrix(r6d):  # (B, 6) → (B, 3, 3)
 
 ## Depth Preprocessing
 
-### Normalizzazione e clipping (`utils/rgbd_utils.py`, `utils/rgbd_utils_custom.py`)
+### Normalizzazione e clipping (`phase4_fusion/main/rgbd_utils.py`, `phase4_fusion/extension/rgbd_utils.py`)
 
 ```python
 def convert_depth_to_meters(depth_raw, depth_scale):
@@ -80,8 +80,8 @@ def convert_depth_to_meters(depth_raw, depth_scale):
 
 | Variante | Branch depth | Formato input |
 |---|---|---|
-| `RGBD_FusionPredictor` | ResNet-18 3ch | depth replicata 3× (`prepare_depth_tensor`) |
-| Custom (5-CNN, ResNet-10) | 1-channel CNN | depth 1ch (`prepare_depth_tensor_custom`) |
+| `phase4_fusion/main/model.py` | ResNet-18 3ch | depth replicata 3× (`prepare_depth_tensor`) |
+| `phase4_fusion/extension/model.py` | custom ResNet-10 1ch | depth 1ch (`prepare_depth_tensor_custom`) |
 
 ---
 
@@ -91,7 +91,7 @@ def convert_depth_to_meters(depth_raw, depth_scale):
 Loss = ADD(R_pred, T_pred, R_gt, T_gt, model_points)
 ```
 
-`ADDLoss` (`utils/add_loss.py`) calcola la distanza media tra punti del modello trasformati con la posa predetta e la GT:
+`ADDLoss` (`phase4_fusion/main/add_loss.py`) calcola la distanza media tra punti del modello trasformati con la posa predetta e la GT:
 
 ```
 ADD = mean_i( || (R_pred · p_i + T_pred) − (R_gt · p_i + T_gt) || )
@@ -103,9 +103,9 @@ ADD = mean_i( || (R_pred · p_i + T_pred) − (R_gt · p_i + T_gt) || )
 
 ## Metriche di Valutazione
 
-Identiche a Phase 3: ADD / ADD-S con soglia 10% diametro, via `utils/pose_metrics.pose_error`.
+Identiche a Phase 3: ADD / ADD-S con soglia 10% diametro, via `common/pose_metrics.pose_error`.
 
-Tutti e tre gli evaluator (`evaluate_metricsRGBD.py`, `evaluate_metricsRGBD_custom.py`, `evaluate_metricsBaseline.py`) importano ora da `utils.pose_metrics` — nessuna duplicazione.
+Tutti e tre gli evaluator (`phase4_fusion/main/evaluate.py`, `phase4_fusion/extension/evaluate.py`, `phase3_baseline/evaluate.py`) importano ora da `common.pose_metrics` — nessuna duplicazione.
 
 ### Uniformità del crop (fix Phase 4)
 
@@ -121,8 +121,8 @@ Problema pre-esistente: `evaluate_metricsRGBD_custom.py` usava GT bbox (`ann['ob
 
 | Script | Modello |
 |---|---|
-| `trainRGBD.py` | `RGBD_FusionPredictor` (ResNet-50 + ResNet-18) |
-| `trainRGBD_custom.py` | `RGBD_FusionPredictor_custom` (ResNet-50 + ResNet-10 o 5-CNN) |
+| `phase4_fusion/main/train.py` | `RGBD_FusionPredictor` (ResNet-50 + ResNet-18) |
+| `phase4_fusion/extension/train.py` | `FusionResNetCustom` (ResNet-50 + ResNet-10) |
 
 ### Hyperparameters
 
@@ -150,8 +150,8 @@ Problema pre-esistente: `evaluate_metricsRGBD_custom.py` usava GT bbox (`ann['ob
 ## Evaluation
 
 ```bash
-python evaluate_metricsRGBD.py        # ResNet-50 + ResNet-18
-python evaluate_metricsRGBD_custom.py # custom depth branch (ResNet-10 o 5-CNN)
+python -m phase4_fusion.main.evaluate       # ResNet-50 + ResNet-18
+python -m phase4_fusion.extension.evaluate  # ResNet-50 + custom ResNet-10
 ```
 
 Entrambi producono una tabella con ADD medio (mm) e Accuracy (%) per classe. Gli oggetti simmetrici (eggbox*, glue*) usano ADD-S.
