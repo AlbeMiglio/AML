@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
-from utils.rotation import rot6d_to_matrix
+from common.rotation import rot6d_to_matrix
 
 
 class ResidualBlock(nn.Module):
@@ -59,10 +59,10 @@ class ResNet1ch(nn.Module):
         return self.fc(x.view(x.size(0), -1))
 
 
-class RGBD_FusionPredictor_custom(nn.Module):
+class FusionResNetCustom(nn.Module):
     """RGB-D fusion model with custom depth backbone."""
     def __init__(self):
-        super(RGBD_FusionPredictor_custom, self).__init__()
+        super(FusionResNetCustom, self).__init__()
         
         # RGB branch: pretrained ResNet-50
         self.rgb_backbone = models.resnet50(weights='IMAGENET1K_V1')

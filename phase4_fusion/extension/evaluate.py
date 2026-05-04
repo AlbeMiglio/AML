@@ -18,31 +18,20 @@ inference_transform = A.Compose([
 
 
 
-# Scegli quale modello usare commentando/scommentando la riga appropriata:
-#from models.RGBD_FusionPredictor_custom import RGBD_FusionPredictor_custom  # 5-layer CNN
-from models.FusionResNetCustom import RGBD_FusionPredictor_custom  # ResNet10 custom
-
-
-
-
-# Selezione automatica del path dei pesi in base al modello importato
-if "FusionResNetCustom" in RGBD_FusionPredictor_custom.__module__:
-    MODEL_PATH = "weights/resnet10_custom/pose_rgbd_custom_1ch_best.pth"
-    print("Using ResNet-10 weights.")
-else:
-    MODEL_PATH = "weights/5layer_cnn/pose_rgbd_custom_1ch_best.pth"
-    print("Using 5-layer CNN weights.")
-
-from data.split import prepare_data_and_splits
-from utils.rgbd_utils_custom import (
+from phase4_fusion.extension.model import FusionResNetCustom
+from common.data_split import prepare_data_and_splits
+from phase4_fusion.extension.rgbd_utils import (
     load_info_cache,
     fetch_sample_info,
     convert_depth_to_meters,
     square_crop_coords,
     build_meta_tensor,
 )
-from utils.rgbd_utils import get_object_metadata, select_detection_for_object
-from utils.pose_metrics import pose_error
+from common.yolo_metadata import get_object_metadata, select_detection_for_object
+from common.pose_metrics import pose_error
+
+MODEL_PATH = "weights/resnet10_custom/pose_rgbd_custom_1ch_best.pth"
+print("Using ResNet-10 weights.")
 
 
 def get_annotation(gt_cache, obj_id, sample_id):
@@ -183,7 +172,7 @@ def main():
     _, _, test_samples, gt_cache = prepare_data_and_splits(ROOT_DATASET)
     info_cache = load_info_cache(ROOT_DATASET, sorted(gt_cache.keys()))
 
-    model = RGBD_FusionPredictor_custom().to(DEVICE)
+    model = FusionResNetCustom().to(DEVICE)
     model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
     model.eval()
     yolo_model = YOLO(YOLO_PATH)

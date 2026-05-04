@@ -10,16 +10,10 @@ from datetime import datetime
 import wandb
 import numpy as np
 
-#use this if you want to use 5-CNN
-#from models.RGBD_FusionPredictor_custom import RGBD_FusionPredictor_custom
-
-#use this if you want to use the custom ResNet-10
-from models.FusionResNetCustom import RGBD_FusionPredictor_custom
-
-
-from data.LineModDatasetRGBD_custom import LineModDatasetRGBD_custom
-from utils.add_loss import ADDLoss
-from data.split import prepare_data_and_splits
+from phase4_fusion.extension.model import FusionResNetCustom
+from phase4_fusion.extension.dataset import LineModDatasetRGBD_custom
+from phase4_fusion.main.add_loss import ADDLoss
+from common.data_split import prepare_data_and_splits
 
 def log_and_print(message, log_file):
     print(message)
@@ -74,7 +68,7 @@ def train():
     train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True)
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, pin_memory=True)
 
-    model = RGBD_FusionPredictor_custom().to(DEVICE)
+    model = FusionResNetCustom().to(DEVICE)
     criterion = ADDLoss().to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)

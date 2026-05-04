@@ -7,25 +7,17 @@ import yaml
 import trimesh
 from ultralytics import YOLO
 
-# Scegli quale modello usare commentando/scommentando la riga appropriata:
-#from models.RGBD_FusionPredictor_custom import RGBD_FusionPredictor_custom  # 5-layer CNN
-from models.FusionResNetCustom import RGBD_FusionPredictor_custom  # ResNet10 custom
+from phase4_fusion.extension.model import FusionResNetCustom
 
 
 
 
 
-# Selezione automatica del path dei pesi in base al modello importato
-if "FusionResNetCustom" in RGBD_FusionPredictor_custom.__module__:
-    MODEL_PATH = "weights/resnet10_custom/pose_rgbd_custom_1ch_best.pth"
-    print("Using custom ResNet-10 model.")
-else:
-    MODEL_PATH = "weights/5layer_cnn/pose_rgbd_custom_1ch_best.pth"
-    print("Using 5-layer CNN model.")
+MODEL_PATH = "weights/resnet10_custom/pose_rgbd_custom_1ch_best.pth"
+print("Using custom ResNet-10 model.")
 
-
-from data.split import prepare_data_and_splits
-from utils.rgbd_utils_custom import (
+from common.data_split import prepare_data_and_splits
+from phase4_fusion.extension.rgbd_utils import (
     load_info_cache,
     fetch_sample_info,
     convert_depth_to_meters,
@@ -34,7 +26,7 @@ from utils.rgbd_utils_custom import (
     prepare_depth_tensor,
     build_meta_tensor,
 )
-from utils.rgbd_utils import get_object_metadata, select_detection_for_object
+from common.yolo_metadata import get_object_metadata, select_detection_for_object
 
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
@@ -121,7 +113,7 @@ def main():
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
     print("Loading RGBD custom model...")
-    pose_model = RGBD_FusionPredictor_custom().to(DEVICE)
+    pose_model = FusionResNetCustom().to(DEVICE)
     pose_model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
     pose_model.eval()
 

@@ -1,7 +1,12 @@
+# ARCHIVED: variante 5-layer CNN per il depth branch, scartata in favore di
+# FusionResNetCustom (ResNet-10 custom) in phase4_fusion/extension/model.py.
+# Conservata come riferimento storico per la relazione finale.
+# Non importata da nessun modulo attivo.
+
 import torch
 import torch.nn as nn
 import torchvision.models as models
-from utils.rotation import rot6d_to_matrix
+from common.rotation import rot6d_to_matrix
 
 class customCNN(nn.Module):
     """5-layer CNN for single-channel depth processing."""

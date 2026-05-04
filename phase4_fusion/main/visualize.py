@@ -18,9 +18,8 @@ from phase4_fusion.main.rgbd_utils import (
     prepare_rgb_tensor,
     prepare_depth_tensor,
     build_meta_tensor,
-    select_detection_for_object,
-    get_object_metadata,
 )
+from common.yolo_metadata import select_detection_for_object, get_object_metadata
 
 def get_all_models_info(root_path):
     """Load global models_info.yml database from models/."""

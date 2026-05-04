@@ -18,9 +18,8 @@ from phase4_fusion.main.rgbd_utils import (
     prepare_rgb_tensor,
     prepare_depth_tensor,
     build_meta_tensor,
-    select_detection_for_object,
-    get_object_metadata,
 )
+from common.yolo_metadata import select_detection_for_object, get_object_metadata
 from common.pose_metrics import pose_error
 
 def get_annotation(gt_cache, obj_id, sample_id):

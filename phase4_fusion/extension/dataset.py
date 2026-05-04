@@ -7,7 +7,7 @@ import numpy as np
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-from utils.rgbd_utils_custom import convert_depth_to_meters, square_crop_coords, prepare_rgb_tensor, prepare_depth_tensor, build_meta_tensor
+from phase4_fusion.extension.rgbd_utils import convert_depth_to_meters, square_crop_coords, prepare_rgb_tensor, prepare_depth_tensor, build_meta_tensor
 
 class LineModDatasetRGBD_custom(Dataset):
     def __init__(self, dataset_root, samples, gt_cache, info_cache, img_size=(224, 224), n_points=500, is_train=False):
