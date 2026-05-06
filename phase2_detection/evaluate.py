@@ -85,7 +85,17 @@ def main(opt):
         writer.writerows(rows)
         writer.writerow({"class": "GLOBAL", "AP50": round(map50, 4), "AP50_95": round(map5095, 4)})
 
-    print(f"\nResults saved to {csv_path}")
+    # Save Markdown
+    md_path = os.path.join(RESULTS_DIR, f"yolo_{opt.split}_metrics.md")
+    with open(md_path, 'w') as f:
+        f.write(f"# Metriche YOLO - Split: {opt.split}\n\n")
+        f.write("| Classe | AP@0.5 | AP@0.5:0.95 |\n")
+        f.write("|:---|:---:|:---:|\n")
+        for row in rows:
+            f.write(f"| {row['class']} | {row['AP50']*100:.2f}% | {row['AP50_95']*100:.2f}% |\n")
+        f.write(f"| **GLOBAL** | **{map50*100:.2f}%** | **{map5095*100:.2f}%** |\n")
+
+    print(f"\nResults saved to {csv_path} and {md_path}")
 
 if __name__ == "__main__":
     main(parse_opt())
