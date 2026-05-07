@@ -71,7 +71,7 @@ literature.
 The LineMod dataset provides a valuable benchmark for advancing the field of 6D object
 pose estimation, especially in scenarios where texture information is limited. For this project
 we are using a subset of this dataset that you could find in this link:
-https://drive.google.com/drive/folders/19ivHpaKm9dOrr12fzC8IDFczWRPFxho
+https://drive.google.com/drive/folders/19ivHpaKm9dOrr12fzC8IDFczWRPFxho7
 
 At this point, first we suggest getting acquaintance with the LineMod Dataset and its
 components.
