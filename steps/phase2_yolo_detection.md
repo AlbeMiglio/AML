@@ -123,27 +123,36 @@ python -m phase2_detection.evaluate
 python -m phase2_detection.evaluate --split val --device cpu
 ```
 
-Output:
-```
+### Risultati Ottenuti (Test Split)
+
+Dopo l'esecuzione della valutazione sul test split di LineMod (3160 immagini), i risultati ottenuti con il modello `best.pt` sono i seguenti:
+
 =================================================================
 YOLO Evaluation — split: test
 =================================================================
-Global mAP@0.5              XX.XX%
-Global mAP@0.5:0.95         XX.XX%
-Mean Precision              XX.XX%
-Mean Recall                 XX.XX%
+Global mAP@0.5              99.50%
+Global mAP@0.5:0.95         96.03%
+Mean Precision              99.96%
+Mean Recall                 100.00%
 
 -----------------------------------------------------------------
-Class           AP@0.5    AP@0.5:0.95
+Class               AP@0.5    AP@0.5:0.95
 -----------------------------------------------------------------
-Ape              XX.XX%        XX.XX%
-Benchvise        XX.XX%        XX.XX%
-...
+Ape                 99.50%         93.78%
+Benchvise           99.50%         97.04%
+Cam                 99.50%         94.97%
+Can                 99.50%         98.47%
+Cat                 99.50%         95.91%
+Driller             99.50%         96.20%
+Duck                99.50%         95.00%
+Eggbox              99.50%         97.51%
+Glue                99.50%         93.65%
+Holepuncher         99.50%         95.67%
+Iron                99.50%         96.08%
+Lamp                99.50%         97.40%
+Phone               99.50%         96.74%
 =================================================================
-Results saved to results/yolo_test_metrics.csv
-```
-
-Il CSV `results/yolo_test_metrics.csv` contiene una riga per classe + una riga `GLOBAL`.
+Results saved to results/yolo_test_metrics.csv e results/yolo_test_metrics.md
 
 **Prerequisito:** il dataset YOLO deve essere già preparato:
 ```bash
@@ -175,4 +184,7 @@ Il YOLO non è valutato come sistema standalone: il suo output (bbox) alimenta i
 
 ### Mapping class_id
 `class_id_yolo = obj_id - 1` (LineMod usa IDs da 1, YOLO da 0).
-Tutti gli script che interpretano le predizioni YOLO usano `int(box.cls) != target_cls` dove `target_cls = obj_id - 1` (es. `common/yolo_metadata.py`, `select_detection_for_object`).
+### Note sull'ambiente e l'implementazione
+- **Gestione Dipendenze**: L'ambiente iniziale era privo di `pip`. È stato necessario inizializzarlo tramite `python3 -m ensurepip` e installare `scikit-learn` separatamente per permettere il funzionamento degli script di split dei dati.
+- **Dataset Linking**: Per evitare di duplicare GB di dati, è stato creato un link simbolico (`ln -s`) tra la cartella sulla Scrivania e la directory `datasets/` del progetto.
+- **Weights Fix**: Se il file `best.pt` viene caricato come cartella (estratto), la libreria Ultralytics fallisce. È stato necessario ricompattare i contenuti in un archivio Zip con estensione `.pt` per renderlo caricabile.
