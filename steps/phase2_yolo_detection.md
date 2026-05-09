@@ -184,7 +184,4 @@ Il YOLO non è valutato come sistema standalone: il suo output (bbox) alimenta i
 
 ### Mapping class_id
 `class_id_yolo = obj_id - 1` (LineMod usa IDs da 1, YOLO da 0).
-### Note sull'ambiente e l'implementazione
-- **Gestione Dipendenze**: L'ambiente iniziale era privo di `pip`. È stato necessario inizializzarlo tramite `python3 -m ensurepip` e installare `scikit-learn` separatamente per permettere il funzionamento degli script di split dei dati.
-- **Dataset Linking**: Per evitare di duplicare GB di dati, è stato creato un link simbolico (`ln -s`) tra la cartella sulla Scrivania e la directory `datasets/` del progetto.
-- **Weights Fix**: Se il file `best.pt` viene caricato come cartella (estratto), la libreria Ultralytics fallisce. È stato necessario ricompattare i contenuti in un archivio Zip con estensione `.pt` per renderlo caricabile.
+
