@@ -180,7 +180,32 @@ Lo script valuta il modello su 4 modalità per isolare le diverse sorgenti di er
 python -m phase3_baseline.evaluate
 ```
 
-Output: tabella con 4 colonne per ogni classe + media globale, con asterisco (*) per le classi con ADD-S.
+Output effettivo ottenuto (test split):
+
+```text
+===========================================================================================================================================================
+CLASSE         |        GT Crop         |       YOLO+T_gt        |     YOLO+T_pinhole     |      YOLO+T_pred      
+               | ADD(mm)    Acc%       | ADD(mm)    Acc%       | ADD(mm)    Acc%       | ADD(mm)    Acc%      
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ape            | 6.22       87.9      | 6.27       87.1      | 134.41     1.7       | 116.71     0.0       
+benchvise      | 12.58      95.8      | 12.67      96.3      | 114.51     7.9       | 92.07      1.4       
+camera         | 9.68       92.1      | 9.75       92.9      | 119.46     4.0       | 98.31      0.8       
+can            | 10.85      96.3      | 10.94      94.2      | 76.63      28.8      | 97.82      0.8       
+cat            | 8.38       92.1      | 8.20       92.1      | 180.50     0.4       | 112.41     0.0       
+driller        | 15.41      91.1      | 15.05      91.1      | 124.53     1.6       | 93.12      2.4       
+duck           | 7.51       86.6      | 7.44       87.4      | 84.39      0.8       | 118.39     0.0       
+eggbox        *| 5.80       100.0     | 5.73       100.0     | 72.43      24.9      | 55.21      5.0       
+glue          *| 5.46       99.2      | 5.36       99.2      | 157.10     32.9      | 62.93      7.4       
+holepuncher    | 9.03       88.6      | 9.15       90.7      | 153.56     1.3       | 104.00     0.4       
+iron           | 14.88      91.3      | 14.75      93.0      | 205.02     2.2       | 99.47      2.6       
+lamp           | 13.12      98.8      | 13.36      98.0      | 178.99     6.0       | 87.77      2.0       
+phone          | 13.61      85.9      | 14.07      85.9      | 159.86     9.8       | 93.74      0.9       
+===========================================================================================================================================================
+* ADD-S metric (symmetric objects)
+GLOBAL AVERAGE -> GT: 92.7% | YOLO+T_gt: 92.9% | YOLO+T_pinhole: 9.4% | YOLO+T_pred: 1.8%
+```
+
+Come previsto, la baseline stima ottimamente la rotazione (92.9% di accuratezza con T reale fornita), ma non è in grado di stimare correttamente la traslazione (crollo al 1.8% in `YOLO+T_pred`). Questo giustifica il passaggio alla Fase 4 con i dati Depth.
 
 ---
 
