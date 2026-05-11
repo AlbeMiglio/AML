@@ -181,8 +181,7 @@ def run_inspector():
     generate_terminal_report(test_dataset, pose_net, yolo, models_info, ROOT_DATASET, DEVICE, intrinsics)
 
     # 2. Visualizzazione con GT verde e Pred rosso
-    os.makedirs('results', exist_ok=True)
-    for i_viz in range(3):
+    while True:
         idx = np.random.randint(len(test_dataset))
         batch = test_dataset[idx]
         obj_id = int(batch["obj_id"])
@@ -219,7 +218,7 @@ def run_inspector():
                 viz = project_3d_box(viz, R_gt, T_gt, K, models_info[obj_id], (0,255,0))
                 viz = project_3d_box(viz, R_p, T_p, K, models_info[obj_id], (255,0,0))
             plt.imshow(viz); plt.title(titles[i])
-        plt.tight_layout(); plt.savefig(f'results/phase3_viz_{i_viz}.png'); plt.close()
+        plt.tight_layout(); plt.show()
 
 if __name__ == "__main__":
     run_inspector()
