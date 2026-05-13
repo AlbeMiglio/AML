@@ -2,44 +2,25 @@ import torch
 from torch.utils.data import Dataset
 import os
 import numpy as np
-import cv2 
+import cv2
 import trimesh
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 
 from phase4_fusion.main.rgbd_utils import (
     convert_depth_to_meters,
     square_crop_coords,
-    prepare_rgb_tensor,
-    prepare_depth_tensor,
     build_meta_tensor,
 )
 
 class LineModDatasetRGBD(Dataset):
     def __init__(self, dataset_root, samples, gt_cache, info_cache, img_size=(224, 224), n_points=500, is_train=False):
         self.dataset_root = dataset_root
-        self.samples = samples      # Lista di (obj_id, img_id)
-        self.gt_cache = gt_cache    # Cache caricata da gt.yml
-        self.info_cache = info_cache # Cache caricata da info.yml
+        self.samples = samples
+        self.gt_cache = gt_cache
+        self.info_cache = info_cache
         self.img_size = img_size
         self.n_points = n_points
         self.is_train = is_train
 
-        # Augmentation pipeline (photometric only)
-        self.transform = A.Compose([
-            A.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05, p=0.3),
-            A.GaussNoise(std_range=(0.01, 0.03), p=0.2),
-            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-            ToTensorV2(),
-        ], additional_targets={'depth': 'mask'})
-        
-        # Validation/test transform
-        self.val_transform = A.Compose([
-            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-            ToTensorV2(),
-        ], additional_targets={'depth': 'mask'})
-
-        # 3D model points cache
         self.model_points_cache = {}
         unique_obj_ids = set([s[0] for s in samples])
         for obj_id in unique_obj_ids:
@@ -100,19 +81,10 @@ class LineModDatasetRGBD(Dataset):
         rgb_crop = cv2.resize(rgb_crop, self.img_size, interpolation=cv2.INTER_LINEAR)
         depth_crop = cv2.resize(depth_crop, self.img_size, interpolation=cv2.INTER_NEAREST)
 
-        t = self.transform if self.is_train else self.val_transform
-        augmented = t(image=rgb_crop, depth=depth_crop)
-        
-        rgb_tensor = augmented['image']
-        depth_tensor = augmented['depth']
-
-        if torch.is_tensor(depth_tensor):
-            depth_np = depth_tensor.cpu().numpy()
-        else:
-            depth_np = depth_tensor
-
-        depth_3ch = np.repeat(depth_np[np.newaxis, :, :], 3, axis=0)
-        depth_tensor = torch.from_numpy(depth_3ch).float()
+        # Raw uint8 RGB (3,H,W) — normalize + augment happen on GPU in train loop.
+        rgb_tensor = torch.from_numpy(np.ascontiguousarray(rgb_crop.transpose(2, 0, 1)))  # uint8
+        # Single-channel float depth (1,H,W) — replicated to 3ch on GPU before model.
+        depth_tensor = torch.from_numpy(depth_crop).float().unsqueeze(0)
 
         meta_tensor = build_meta_tensor([x, y, w, h], K, rgb_img.shape)
         meta_info = meta_tensor.squeeze(0)

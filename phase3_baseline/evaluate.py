@@ -1,3 +1,4 @@
+import argparse
 import torch
 import numpy as np
 import cv2
@@ -159,7 +160,7 @@ def generate_terminal_report(val_dataset, pose_net, yolo_model, models_info, ROO
     )
 
 
-def run_inspector():
+def run_inspector(report_only=False):
     ROOT_DATASET = "datasets/linemod/Linemod_preprocessed"
     YOLO_PATH = 'weights/yolo/best.pt'
     RESNET_PATH = "weights/baseline/pose_resnet50_baseline.pth"
@@ -179,6 +180,9 @@ def run_inspector():
 
     # 1. Report su terminale con tre confronti
     generate_terminal_report(test_dataset, pose_net, yolo, models_info, ROOT_DATASET, DEVICE, intrinsics)
+
+    if report_only:
+        return
 
     # 2. Visualizzazione con GT verde e Pred rosso
     while True:
@@ -221,4 +225,8 @@ def run_inspector():
         plt.tight_layout(); plt.show()
 
 if __name__ == "__main__":
-    run_inspector()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--report-only", action="store_true",
+                        help="Stampa solo la tabella ADD e termina, senza il visualizer interattivo.")
+    args = parser.parse_args()
+    run_inspector(report_only=args.report_only)

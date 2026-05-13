@@ -59,9 +59,11 @@ def train():
 
     LAMBDA_T = 1.0  # weight for translation MSE relative to rotation loss
 
-    SAVE_PATH_BEST = "pose_resnet50_baseline_best.pth"
-    CHECKPOINT_PATH = "pose_resnet50_baseline_checkpoint.pth"
-    LOG_FILE = f"train_rgb_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    RESULTS_DIR = "results_3"
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    SAVE_PATH_BEST = os.path.join(RESULTS_DIR, "pose_resnet50_baseline_best.pth")
+    CHECKPOINT_PATH = os.path.join(RESULTS_DIR, "pose_resnet50_baseline_checkpoint.pth")
+    LOG_FILE = os.path.join(RESULTS_DIR, f"train_rgb_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
 
     wandb.init(
         project="linemod-pose-estimation",

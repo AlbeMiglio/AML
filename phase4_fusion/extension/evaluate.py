@@ -30,7 +30,7 @@ from phase4_fusion.extension.rgbd_utils import (
 from common.yolo_metadata import get_object_metadata, select_detection_for_object
 from common.pose_metrics import pose_error
 
-MODEL_PATH = "weights/fusion_ext/resnet10/pose_rgbd_custom_1ch_best.pth"
+MODEL_PATH = "results_4_ext/pose_rgbd_custom_1ch_best.pth"
 print("Using ResNet-10 weights.")
 
 

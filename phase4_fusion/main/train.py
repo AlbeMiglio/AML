@@ -1,6 +1,7 @@
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
+from torch.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -13,6 +14,7 @@ from phase4_fusion.main.model import RGBD_FusionPredictor
 from phase4_fusion.main.dataset import LineModDatasetRGBD
 from phase4_fusion.main.add_loss import ADDLoss
 from common.data_split import prepare_data_and_splits
+from common.gpu_augment import GPUAugmentation
 
 def log_and_print(message, log_file):
     print(message)
@@ -35,10 +37,15 @@ def train():
     LEARNING_RATE = 1e-4
     EPOCHS = 100
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+    AMP_ENABLED = (DEVICE.type == "cuda")
+    AMP_DTYPE = torch.bfloat16 if (DEVICE.type == "cuda" and torch.cuda.is_bf16_supported()) else torch.float16
+    NUM_WORKERS = int(os.environ.get("NUM_WORKERS", "8"))
     
-    SAVE_PATH_BEST = "pose_rgbd_fusion_best.pth"
-    CHECKPOINT_PATH = "pose_rgbd_checkpoint.pth"
-    LOG_FILE = f"train_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    RESULTS_DIR = "results_4_main"
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    SAVE_PATH_BEST = os.path.join(RESULTS_DIR, "pose_rgbd_fusion_best.pth")
+    CHECKPOINT_PATH = os.path.join(RESULTS_DIR, "pose_rgbd_checkpoint.pth")
+    LOG_FILE = os.path.join(RESULTS_DIR, f"train_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
     N_POINTS = 500
 
     wandb.init(
@@ -63,13 +70,24 @@ def train():
     train_set = LineModDatasetRGBD(ROOT_DATASET, train_samples, gt_cache, info_cache, n_points=N_POINTS, is_train=True)
     val_set = LineModDatasetRGBD(ROOT_DATASET, val_samples, gt_cache, info_cache, n_points=N_POINTS, is_train=False)
 
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True)
-    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, pin_memory=True)
+    train_loader = DataLoader(
+        train_set, batch_size=BATCH_SIZE, shuffle=True,
+        num_workers=NUM_WORKERS, pin_memory=True,
+        persistent_workers=(NUM_WORKERS > 0), prefetch_factor=4 if NUM_WORKERS > 0 else None,
+    )
+    val_loader = DataLoader(
+        val_set, batch_size=BATCH_SIZE, shuffle=False,
+        num_workers=NUM_WORKERS, pin_memory=True,
+        persistent_workers=(NUM_WORKERS > 0), prefetch_factor=4 if NUM_WORKERS > 0 else None,
+    )
 
     model = RGBD_FusionPredictor().to(DEVICE)
     criterion = ADDLoss().to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
-    
+    gpu_aug = GPUAugmentation().to(DEVICE)
+    # bf16 doesn't need GradScaler (no overflow); fp16 does.
+    scaler = GradScaler(DEVICE.type, enabled=(AMP_ENABLED and AMP_DTYPE == torch.float16))
+
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
 
     start_epoch = 0
@@ -96,21 +114,28 @@ def train():
         
         pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS} [LR: {current_lr:.2e}]")
         for batch in pbar:
-            rgb, depth, meta = batch["rgb"].to(DEVICE), batch["depth"].to(DEVICE), batch["meta_info"].to(DEVICE)
-            gt_R, gt_T = batch["R_matrix"].to(DEVICE), batch["translation_3d"].to(DEVICE)
-            model_points = batch["model_points"].to(DEVICE)
+            rgb_u8 = batch["rgb"].to(DEVICE, non_blocking=True)
+            depth_1ch = batch["depth"].to(DEVICE, non_blocking=True)
+            meta = batch["meta_info"].to(DEVICE, non_blocking=True)
+            gt_R = batch["R_matrix"].to(DEVICE, non_blocking=True)
+            gt_T = batch["translation_3d"].to(DEVICE, non_blocking=True)
+            model_points = batch["model_points"].to(DEVICE, non_blocking=True)
+
+            rgb = gpu_aug(rgb_u8, training=True)
+            depth = depth_1ch.expand(-1, 3, -1, -1)
 
             optimizer.zero_grad()
-            pred_T, pred_R = model(rgb, depth, meta)  # pred_R is (B, 3, 3) from rot6d_to_matrix
-
-            batch_loss = criterion(pred_R, pred_T, gt_R, gt_T, model_points)
+            with autocast(DEVICE.type, dtype=AMP_DTYPE, enabled=AMP_ENABLED):
+                pred_T, pred_R = model(rgb, depth, meta)
+                batch_loss = criterion(pred_R, pred_T, gt_R, gt_T, model_points)
 
             with torch.no_grad():
-                train_trans_mse += F.mse_loss(pred_T, gt_T).item()
-                train_rot_mse += F.mse_loss(pred_R, gt_R).item()
+                train_trans_mse += F.mse_loss(pred_T.float(), gt_T).item()
+                train_rot_mse += F.mse_loss(pred_R.float(), gt_R).item()
 
-            batch_loss.backward()
-            optimizer.step()
+            scaler.scale(batch_loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
             train_loss_total += batch_loss.item()
             pbar.set_postfix({'ADD': batch_loss.item()})
@@ -138,11 +163,20 @@ def train():
 
         with torch.no_grad():
             for batch in val_loader:
-                rgb, depth, meta = batch["rgb"].to(DEVICE), batch["depth"].to(DEVICE), batch["meta_info"].to(DEVICE)
-                gt_R, gt_T = batch["R_matrix"].to(DEVICE), batch["translation_3d"].to(DEVICE)
-                model_points, ids = batch["model_points"].to(DEVICE), batch["obj_id"]
+                rgb_u8 = batch["rgb"].to(DEVICE, non_blocking=True)
+                depth_1ch = batch["depth"].to(DEVICE, non_blocking=True)
+                meta = batch["meta_info"].to(DEVICE, non_blocking=True)
+                gt_R = batch["R_matrix"].to(DEVICE, non_blocking=True)
+                gt_T = batch["translation_3d"].to(DEVICE, non_blocking=True)
+                model_points, ids = batch["model_points"].to(DEVICE, non_blocking=True), batch["obj_id"]
 
-                pred_T, pred_R = model(rgb, depth, meta)  # pred_R is (B, 3, 3)
+                rgb = gpu_aug(rgb_u8, training=False)
+                depth = depth_1ch.expand(-1, 3, -1, -1)
+
+                with autocast(DEVICE.type, dtype=AMP_DTYPE, enabled=AMP_ENABLED):
+                    pred_T, pred_R = model(rgb, depth, meta)
+                pred_T = pred_T.float()
+                pred_R = pred_R.float()
 
                 val_trans_mse += F.mse_loss(pred_T, gt_T).item()
                 val_rot_mse += F.mse_loss(pred_R, gt_R).item()

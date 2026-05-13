@@ -158,7 +158,7 @@ def generate_fusion_report(test_samples, gt_cache, info_cache, model, yolo_model
 
 def main():
     ROOT_DATASET = "datasets/linemod/Linemod_preprocessed"
-    MODEL_PATH = "weights/fusion_main/pose_rgbd_fusion_best.pth"
+    MODEL_PATH = "results_4_main/pose_rgbd_fusion_best.pth"
     YOLO_PATH = 'weights/yolo/best.pt'
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
