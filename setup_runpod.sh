@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Phase 4 training pipeline launcher for RunPod (H100 80GB recommended).
+# Phase 4 training pipeline launcher for RunPod.
 #
 # PRECONDITIONS on the pod:
 #   - Repo cloned (or rsynced) to /workspace/AML and you cd'd into it.
-#   - WANDB_API_KEY exported (or pass --wandb-key XXX).
-#   - PyTorch + CUDA already in the base image (use RunPod's
-#     "PyTorch 2.x" template). If not, install before running.
+#   - WANDB_API_KEY exported (or wandb will run in offline mode).
 #
 # Usage:
 #   export WANDB_API_KEY=...
@@ -14,6 +12,8 @@
 # Tunables via env:
 #   NUM_WORKERS=12 (default 8) — match pod vCPU count minus 2
 #   SKIP_DATASET=1 to skip dataset download (if already present)
+#   AUTO_TERMINATE=1 + RUNPOD_API_KEY=... to terminate the pod when done.
+#     (RUNPOD_POD_ID is auto-injected on every RunPod container.)
 
 set -euo pipefail
 
@@ -26,6 +26,50 @@ export PYTHONUTF8=1
 
 PIPELINE_LOG="$PROJECT_ROOT/results_4_pipeline.log"
 log() { echo "[$(date +'%H:%M:%S')] $*" | tee -a "$PIPELINE_LOG"; }
+
+terminate_pod_if_requested() {
+    local rc=$?
+    if [ -z "${AUTO_TERMINATE:-}" ]; then
+        log "Pipeline exited (rc=$rc). AUTO_TERMINATE not set, leaving pod running."
+        return $rc
+    fi
+    if [ -z "${RUNPOD_POD_ID:-}" ]; then
+        log "AUTO_TERMINATE set but RUNPOD_POD_ID missing — not a RunPod environment."
+        return $rc
+    fi
+    if [ -z "${RUNPOD_API_KEY:-}" ]; then
+        log "AUTO_TERMINATE set but RUNPOD_API_KEY missing — cannot call API."
+        return $rc
+    fi
+    log "Pipeline exited (rc=$rc). Terminating pod $RUNPOD_POD_ID in 30s (Ctrl+C to abort)..."
+    sleep 30
+    curl -s -X POST https://api.runpod.io/graphql \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $RUNPOD_API_KEY" \
+        -d "{\"query\":\"mutation { podTerminate(input: {podId: \\\"$RUNPOD_POD_ID\\\"}) }\"}" \
+        | tee -a "$PIPELINE_LOG"
+    log "Termination request sent."
+}
+trap terminate_pod_if_requested EXIT
+
+# ---------- 0. Detect Blackwell, upgrade PyTorch if needed ----------
+log "=== 0/5: pytorch compatibility check ==="
+NEEDS_TORCH_UPGRADE=$(python -c "
+import torch
+if not torch.cuda.is_available():
+    print('0'); raise SystemExit(0)
+cap = torch.cuda.get_device_capability(0)
+supported = torch.cuda.get_arch_list()
+needed = f'sm_{cap[0]}{cap[1]}'
+print('1' if needed not in supported else '0')
+" 2>/dev/null || echo "0")
+if [ "$NEEDS_TORCH_UPGRADE" = "1" ]; then
+    log "GPU compute capability not supported by current torch — upgrading to cu126 nightly-stable..."
+    pip install --quiet --upgrade torch torchvision --index-url https://download.pytorch.org/whl/cu126
+    python -c "import torch; print('torch', torch.__version__, '| device:', torch.cuda.get_device_name(0), '| caps:', torch.cuda.get_arch_list())" | tee -a "$PIPELINE_LOG"
+else
+    log "Torch GPU support OK, skipping upgrade."
+fi
 
 # ---------- 1. Python deps ----------
 log "=== 1/5: install python deps ==="
