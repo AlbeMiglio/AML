@@ -20,7 +20,12 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_ROOT"
 
-export NUM_WORKERS="${NUM_WORKERS:-8}"
+# Defaults tuned for RunPod RTX PRO 4500 32GB Blackwell (28 vCPU, 62 GB RAM).
+# Override any of these via env before invoking the script.
+export NUM_WORKERS="${NUM_WORKERS:-16}"
+export BATCH_SIZE="${BATCH_SIZE:-64}"
+export LEARNING_RATE="${LEARNING_RATE:-2e-4}"
+export EPOCHS="${EPOCHS:-100}"
 export PYTHONIOENCODING=utf-8
 export PYTHONUTF8=1
 
@@ -41,8 +46,18 @@ terminate_pod_if_requested() {
         log "AUTO_TERMINATE set but RUNPOD_API_KEY missing — cannot call API."
         return $rc
     fi
-    log "Pipeline exited (rc=$rc). Terminating pod $RUNPOD_POD_ID in 30s (Ctrl+C to abort)..."
-    sleep 30
+    local grace_seconds="${AUTO_TERMINATE_GRACE:-3600}"
+    log "Pipeline exited (rc=$rc). Will terminate pod $RUNPOD_POD_ID in ${grace_seconds}s (~$(( grace_seconds / 60 ))min)."
+    log "Abort with: pkill -f setup_runpod.sh   (or kill the sleep loop)"
+    local end_at=$(($(date +%s) + grace_seconds))
+    while [ "$(date +%s)" -lt "$end_at" ]; do
+        if pgrep -f 'python.*(train|evaluate)\.py' > /dev/null 2>&1; then
+            log "Detected running train/eval job — postponing termination by another ${grace_seconds}s."
+            end_at=$(($(date +%s) + grace_seconds))
+        fi
+        sleep 60
+    done
+    log "Grace period elapsed with no running jobs. Calling podTerminate..."
     curl -s -X POST https://api.runpod.io/graphql \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $RUNPOD_API_KEY" \

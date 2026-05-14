@@ -33,9 +33,9 @@ def load_info_cache(dataset_root, object_ids):
 
 def train():
     ROOT_DATASET = "datasets/linemod/Linemod_preprocessed"
-    BATCH_SIZE = 32
-    LEARNING_RATE = 1e-4
-    EPOCHS = 100
+    BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "32"))
+    LEARNING_RATE = float(os.environ.get("LEARNING_RATE", "1e-4"))
+    EPOCHS = int(os.environ.get("EPOCHS", "100"))
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     AMP_ENABLED = (DEVICE.type == "cuda")
     AMP_DTYPE = torch.bfloat16 if (DEVICE.type == "cuda" and torch.cuda.is_bf16_supported()) else torch.float16
