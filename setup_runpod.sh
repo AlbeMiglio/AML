@@ -99,7 +99,8 @@ pip install --quiet \
     pyyaml \
     opencv-python-headless \
     tqdm \
-    gdown
+    gdown \
+    scikit-learn
 
 # ---------- 2. Dataset ----------
 log "=== 2/5: dataset ==="
