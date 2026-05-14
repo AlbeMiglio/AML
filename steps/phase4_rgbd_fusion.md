@@ -156,6 +156,22 @@ python -m phase4_fusion.extension.evaluate  # ResNet-50 + custom ResNet-10
 
 Entrambi producono una tabella con ADD medio (mm) e Accuracy (%) per classe. Gli oggetti simmetrici (eggbox*, glue*) usano ADD-S.
 
+### Risultati Ufficiali
+
+Dopo 100 epoche di addestramento su GPU, l'introduzione della profondità ha completamente risolto i problemi di traslazione riscontrati nella Fase 3 (che aveva solo 1.9% di accuratezza).
+
+| Modello | Accuracy (ADD < 10% d) | Range Errore Medio (mm) |
+|---|---|---|
+| **MAIN** (ResNet-18) | **98.4%** | 3.66 – 8.70 mm |
+| **EXT** (ResNet-1ch) | **95.8%** | 5.13 – 10.15 mm |
+
+**Dettaglio classi (Extension):**
+`ape`: 7.88 mm | `benchvise`: 8.91 mm | `camera`: 7.60 mm | `can`: 7.63 mm | `cat`: 6.96 mm | `driller`: 9.79 mm | `duck`: 7.88 mm | `eggbox*`: 5.13 mm | `glue*`: 5.45 mm | `holepuncher`: 7.01 mm | `iron`: 10.15 mm | `lamp`: 9.08 mm | `phone`: 8.88 mm.
+
+**Analisi:** 
+- Entrambi i modelli superano agilmente il 95% di accuratezza globale per la stima della posa 6D completa.
+- La variante `MAIN` (con ResNet-18 ImageNet) ha superato la variante `EXT` (con ResNet-10 custom). Questo suggerisce che i pesi pre-addestrati su ImageNet (usati nel Main copiando la depth su 3 canali) compensano e superano il vantaggio teorico di avere un'architettura nativa a 1 canale addestrata da zero (come nell'Extension).
+
 ---
 
 ## Confronto con DenseFusion (originale)

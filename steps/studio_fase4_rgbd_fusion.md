@@ -80,3 +80,7 @@ Quando scriverai il report finale, questi sono i punti di forza del vostro proge
 - Avete implementato **due varianti** architetturali (Standard ed Extension).
 - Avete usato la rappresentazione **6D Continua** invece dei quaternioni classici, che è uno stato dell'arte moderno.
 - Avete fuso informazioni **RGB**, **Depth** e persino metadati della **Fotocamera/BBox** per aiutare la rete a calcolare la traslazione in modo robusto.
+
+### Analisi Empirica dei Risultati
+I test finali (che hanno raggiunto il **98.4%** nel Main e il **95.8%** nell'Extension) dimostrano che la fusione RGB-D funziona e risolve completamente l'incapacità della Baseline di prevedere la traslazione. 
+Un dato molto interessante (ottimo da discutere nel report) è che la variante **MAIN** (ResNet-18 standard ingannata con la Depth duplicata su 3 canali) ha battuto la variante **EXT** (ResNet-1ch custom). Questo accade spesso nel Deep Learning: i pesi pre-addestrati su milioni di immagini (ImageNet) racchiudono una conoscenza così vasta sui bordi e sulle forme, che riescono a superare il potenziale di una rete custom matematicamente più elegante ma addestrata da zero solo su poche migliaia di immagini.
