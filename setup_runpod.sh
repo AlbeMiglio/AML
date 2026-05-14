@@ -64,9 +64,9 @@ needed = f'sm_{cap[0]}{cap[1]}'
 print('1' if needed not in supported else '0')
 " 2>/dev/null || echo "0")
 if [ "$NEEDS_TORCH_UPGRADE" = "1" ]; then
-    log "GPU compute capability not supported by current torch — upgrading to cu126 nightly-stable..."
-    pip install --quiet --upgrade torch torchvision --index-url https://download.pytorch.org/whl/cu126
-    python -c "import torch; print('torch', torch.__version__, '| device:', torch.cuda.get_device_name(0), '| caps:', torch.cuda.get_arch_list())" | tee -a "$PIPELINE_LOG"
+    log "GPU compute capability not supported by current torch — upgrading to cu128 (Blackwell)..."
+    pip install --quiet --upgrade torch torchvision --index-url https://download.pytorch.org/whl/cu128
+    python -c "import torch; caps=torch.cuda.get_arch_list(); cap=torch.cuda.get_device_capability(0); needed=f'sm_{cap[0]}{cap[1]}'; ok = needed in caps; print('torch', torch.__version__, '| device:', torch.cuda.get_device_name(0), '| needed:', needed, '| caps:', caps, '| OK:', ok); raise SystemExit(0 if ok else 3)" | tee -a "$PIPELINE_LOG"
 else
     log "Torch GPU support OK, skipping upgrade."
 fi
@@ -91,8 +91,9 @@ log "=== 2/5: dataset ==="
 if [ -z "${SKIP_DATASET:-}" ] && [ ! -d "datasets/linemod/Linemod_preprocessed" ]; then
     mkdir -p datasets/linemod
     log "downloading LineMod (~1 GB) via gdown..."
-    gdown --fuzzy "https://drive.google.com/file/d/1qQ8ZjUI6QauzFsiF8EpaaI2nKFWna_kQ/view?usp=sharing" \
-        -O datasets/linemod/Linemod_preprocessed.zip
+    # Use bare file ID — works on all gdown versions, no --fuzzy needed.
+    pip install --quiet --upgrade gdown
+    gdown "1qQ8ZjUI6QauzFsiF8EpaaI2nKFWna_kQ" -O datasets/linemod/Linemod_preprocessed.zip
     log "extracting..."
     unzip -q -o datasets/linemod/Linemod_preprocessed.zip -d datasets/linemod/
     rm -f datasets/linemod/Linemod_preprocessed.zip
