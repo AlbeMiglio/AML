@@ -105,15 +105,23 @@ pip install --quiet \
 log "=== 2/5: dataset ==="
 if [ -z "${SKIP_DATASET:-}" ] && [ ! -d "datasets/linemod/Linemod_preprocessed" ]; then
     mkdir -p datasets/linemod
-    log "downloading LineMod (~1 GB) via gdown..."
-    # Use bare file ID — works on all gdown versions, no --fuzzy needed.
-    pip install --quiet --upgrade gdown
-    gdown "1qQ8ZjUI6QauzFsiF8EpaaI2nKFWna_kQ" -O datasets/linemod/Linemod_preprocessed.zip
+    if [ ! -s "datasets/linemod/Linemod_preprocessed.zip" ]; then
+        log "downloading LineMod (~9 GB) via gdown..."
+        pip install --quiet --upgrade gdown
+        gdown "1qQ8ZjUI6QauzFsiF8EpaaI2nKFWna_kQ" -O datasets/linemod/Linemod_preprocessed.zip
+    else
+        log "zip already present ($(stat -c %s datasets/linemod/Linemod_preprocessed.zip 2>/dev/null || echo ?) bytes), skipping download."
+    fi
     log "extracting..."
-    unzip -q -o datasets/linemod/Linemod_preprocessed.zip -d datasets/linemod/
+    if command -v unzip >/dev/null 2>&1; then
+        unzip -q -o datasets/linemod/Linemod_preprocessed.zip -d datasets/linemod/
+    else
+        log "unzip not available, falling back to python zipfile..."
+        python -m zipfile -e datasets/linemod/Linemod_preprocessed.zip datasets/linemod/
+    fi
     rm -f datasets/linemod/Linemod_preprocessed.zip
 else
-    log "dataset present, skipping download."
+    log "dataset dir present, skipping download/extract."
 fi
 
 # ---------- 3. Wandb auth ----------
