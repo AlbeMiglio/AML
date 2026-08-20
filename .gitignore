@@ -214,3 +214,15 @@ report/main.out
 results_4_official/
 weights_final/
 overleaf_project.zip
+
+# materiale locale non distribuibile
+.idea/
+utils/
+yolo11n.pt
+results/
+results_4_main/
+s347187_s343585_s346463_project6.pdf
+report/figure/qualitative/
+report/figure/pinhole_failure.jpg
+report/figure/training_dynamics.pdf
+aml_submission.zip
