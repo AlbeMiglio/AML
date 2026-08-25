@@ -17,11 +17,17 @@ def rot6d_to_matrix(r6d):
     Reference: Zhou et al. "On the Continuity of Rotation Representations in
     Neural Networks", CVPR 2019.
     """
-    a1 = r6d[:, :3]  # (B, 3)
-    a2 = r6d[:, 3:]  # (B, 3)
+    a1 = r6d[:, :3]  # (B, 3) - Network's first raw vector prediction
+    a2 = r6d[:, 3:]  # (B, 3) - Network's second raw vector prediction
 
+    # Step 1: Normalize the first vector to unit length (Perfect X axis)
     b1 = F.normalize(a1, p=2, dim=1)
+    
+    # Step 2: Subtract the projection of a2 onto b1 to force exact orthogonality (90 degrees), then normalize (Perfect Y axis)
     b2 = F.normalize(a2 - (b1 * a2).sum(dim=1, keepdim=True) * b1, p=2, dim=1)
+    
+    # Step 3: Compute the third orthogonal axis (Z) for free using the cross product
     b3 = torch.cross(b1, b2, dim=1)
 
+    # Return a mathematically perfect, distortion-free 3x3 orthogonal rotation matrix
     return torch.stack([b1, b2, b3], dim=2)  # columns are b1, b2, b3

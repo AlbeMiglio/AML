@@ -71,12 +71,19 @@ class LineModDatasetRGBD(Dataset):
         x1, y1 = min(w_img, int(x + w)), min(h_img, int(y + h))
         box = depth_meters[y0:y1, x0:x1]
         vs, us = np.nonzero(box > 0)
-        if len(vs) < 20:  # depth hole over the whole box: no anchor, absolute fallback
+        
+        # Graceful degradation: If we have fewer than 20 valid depth pixels (e.g. sensor failure or specular reflection),
+        # disable the anchor (fallback to 0,0,0) to prevent division by zero or NaN crashes.
+        if len(vs) < 20:  
             return np.zeros(3, dtype=np.float32)
         d = box[vs, us]
         fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
+        
+        # Mathematical back-projection: Translate flat 2D screen pixels into 3D floating coordinates
         X = ((us + x0) - cx) * d / fx
         Y = ((vs + y0) - cy) * d / fy
+        
+        # Use MEDIAN instead of mean to effectively ignore background pixels and stabilize YOLO's bounding box jitter
         return np.array([np.median(X), np.median(Y), np.median(d)], dtype=np.float32)
 
     def __len__(self):
@@ -116,8 +123,10 @@ class LineModDatasetRGBD(Dataset):
         depth_crop = depth_meters[t:b, l:r]
 
         rgb_crop = cv2.resize(rgb_crop, self.img_size, interpolation=cv2.INTER_LINEAR)
-        # NEAREST: depth/XYZ are metric values, interpolating across object borders
-        # would fabricate 3D points that exist nowhere in the scene.
+        
+        # CRITICAL: We must use INTER_NEAREST for depth resizing. If we used smooth interpolation (like bicubic),
+        # blending a pixel at 1m with a pixel at 3m would fabricate a fake "ghost" point at 2m in the 3D space.
+        # Geometric data must never be spatially smoothed across object boundaries.
         depth_crop = cv2.resize(depth_crop, self.img_size, interpolation=cv2.INTER_NEAREST)
 
         # Raw uint8 RGB (3,H,W) — normalize + augment happen on GPU in train loop.
