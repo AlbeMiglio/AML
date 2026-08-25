@@ -253,4 +253,4 @@ Unlike the composite loss of the baseline (Eq.~\ref{eq:baseline_loss}), the Phas
     \mathcal{L}_{\text{ADD}} = \frac{1}{N} \sum_{i=1}^{N} \|(\bR_{\text{pred}} \cdot \bp_i + \bt_{\text{pred}}) - (\bR_{\text{gt}} \cdot \bp_i + \bt_{\text{gt}})\|_2
     \label{eq:add_loss}
 \end{equation}
-where $\{\bp_i\}_{i=1}^N$ are $N$=500 points sampled from the 3D CAD model. This formulation directly optimizes the metric used for evaluation, eliminating the need for the ad-hoc balancing parameter $\lambda$ between rotation and translation losses.
+where $\{\bp_i\}_{i=1}^N$ are $N$=500 points sampled from the 3D CAD model. This formulation directly optimizes the metric used for evaluation, eliminating the need for the ad-hoc balancing parameter $\lambda$ between rotation and translation losses. We do not apply this loss to the pure-RGB baseline (Phase 3) because its inherent inaccuracies in depth estimation would cause disproportionate metric errors (in the order of meters), leading to exploding gradients and training instability. The composite loss of Phase 3, by isolating the rotation error (upper-bounded to 1.0), serves as a fundamental stabilization mechanism.
