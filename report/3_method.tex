@@ -242,10 +242,9 @@ The depth branch can consume the observed geometry in different formats, which w
 \begin{itemize}
     \item \textbf{Raw depth} (\texttt{raw}): the metric depth crop in meters, channel-replicated to three channels; the translation head regresses the absolute position (no anchor). This is the direct-regression baseline.
     \item \textbf{Anchored normalized depth} (\texttt{norm}): the depth crop centered on the anchor depth and scaled, $d' = \operatorname{clip}\!\big((d - a_z)/s,\,[-4,4]\big)$ with $s = 0.15$\,m ($\approx$ object radius), invalid pixels set to $0$; the head regresses the residual $\Delta\bt$.
-    \item \textbf{Anchored XYZ map} (\texttt{xyz}): a 3-channel map of per-pixel metric coordinates back-projected through $\mathbf{K}$, expressed relative to the anchor and scaled by the same $s$; the head regresses $\Delta\bt$.
 \end{itemize}
 
-The pixel grid of the resized crop is mapped back to original image coordinates before back-projection, so the XYZ map is metrically exact under the true intrinsics. Depth and XYZ maps are resized with nearest-neighbor interpolation: metric values interpolated across object boundaries would fabricate 3D points that exist nowhere in the scene.
+Depth maps are resized with nearest-neighbor interpolation: metric values interpolated across object boundaries would fabricate 3D points that exist nowhere in the scene.
 
 % ------------------------------------------------------------------
 \subsection{6D Continuous Rotation Representation}

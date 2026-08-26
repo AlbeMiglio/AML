@@ -25,10 +25,8 @@ class LineModDatasetRGBD(Dataset):
         norm -- depth centered on the bbox median and scaled (variant A). The pose
                 target becomes a residual w.r.t. a 3D anchor backprojected from the
                 bbox depth: the network no longer guesses Z~1m from a global vector.
-        xyz  -- 3-channel metric XYZ map from depth+K, expressed relative to the same
-                anchor (variant B): per-pixel geometry instead of a flattened hint.
         """
-        assert depth_mode in ("raw", "norm", "xyz"), depth_mode
+        assert depth_mode in ("raw", "norm"), depth_mode
         self.dataset_root = dataset_root
         self.samples = samples
         self.gt_cache = gt_cache
@@ -143,21 +141,8 @@ class LineModDatasetRGBD(Dataset):
             if self.depth_mode == "norm":
                 dn = np.where(depth_crop > 0, (depth_crop - anchor[2]) / s, 0.0)
                 depth_tensor = torch.from_numpy(np.clip(dn, -4.0, 4.0).astype(np.float32)).unsqueeze(0)
-            else:  # xyz
-                # Pixel coords of the resized grid, mapped back to the original image
-                # so the backprojection uses the true intrinsics.
-                fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
-                ws, hs = self.img_size
-                u = l + (np.arange(ws, dtype=np.float32) + 0.5) * (r - l) / ws
-                v = t + (np.arange(hs, dtype=np.float32) + 0.5) * (b - t) / hs
-                uu, vv = np.meshgrid(u, v)
-                valid = depth_crop > 0
-                X = (uu - cx) * depth_crop / fx
-                Y = (vv - cy) * depth_crop / fy
-                xyz = np.stack([X, Y, depth_crop], axis=0)
-                xyz = (xyz - anchor.reshape(3, 1, 1)) / s
-                xyz = np.clip(xyz, -4.0, 4.0) * valid[None]
-                depth_tensor = torch.from_numpy(xyz.astype(np.float32))
+            else:
+                raise ValueError(f"Unknown depth mode: {self.depth_mode}")
 
         meta_tensor = build_meta_tensor([x, y, w, h], K, rgb_img.shape)
         meta_info = meta_tensor.squeeze(0)
