@@ -26,5 +26,5 @@ Our work takes a different path with a ``Global Fusion'' approach: we extract a 
 
 Representing 3D rotations in neural networks is a well-known challenge. Euler angles suffer from Gimbal Lock, and quaternions need a unit-length constraint plus they have \emph{antipodal ambiguity} ($\bq$ and $-\bq$ represent the same rotation). Naively regressing a $3\times 3$ rotation matrix (9 values) from a fully connected layer almost never produces orthogonal matrices, resulting in physically invalid transformations.
 
-Zhou \etal~\cite{zhou2019continuity} showed that any rotation representation in $\R^n$ with $n < 5$ is necessarily discontinuous, and proposed a 6D continuous representation that converts two unconstrained 3D vectors into a valid $\SO$ matrix through a differentiable Gram-Schmidt process. This makes gradient flow during training much more stable. We use this representation in our Phase~4 model.
+Zhou \etal~\cite{zhou2019continuity} showed that any rotation representation in $\R^n$ with $n < 5$ is necessarily discontinuous, and proposed a 6D continuous representation that converts two unconstrained 3D vectors into a valid $\SO$ matrix through a differentiable Gram-Schmidt process. This makes gradient flow during training much more stable. We use this representation in our RGB-D fusion model.
 

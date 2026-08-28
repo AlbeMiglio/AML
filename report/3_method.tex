@@ -145,7 +145,7 @@ To get past the inherent depth ambiguity of using RGB alone, we introduce a mult
     \end{scope}
 \end{tikzpicture}%
     }
-    \caption{Architecture of the proposed RGB-D Global Fusion model (Phase~4). Three independent feature extractors process the RGB crop (ResNet-50, 2048D), the depth crop (ResNet-18 on a channel-replicated depth map, 512D), and an 8D vector of metadata composed of normalized bounding-box coordinates and camera intrinsics (MLP encoder, 64D). The three vectors are concatenated into a 2624D shared representation, projected to a 256D latent space by the Fusion MLP, and decoded by two heads. The translation head does not output a position: it predicts a residual $\Delta\bt$ that is added to the geometric anchor $\ba$ (orange path), the per-axis median of the depth pixels inside the detected box back-projected through $\mathbf{K}$ (Sec.~\ref{sec:method_anchor}); no learned parameters take part in computing it. The rotation head outputs 6 values mapped to a valid $\SO$ matrix via differentiable Gram-Schmidt orthogonalization.}
+    \caption{Architecture of the proposed RGB-D Global Fusion model. Three independent feature extractors process the RGB crop (ResNet-50, 2048D), the depth crop (ResNet-18 on a channel-replicated depth map, 512D), and an 8D vector of metadata composed of normalized bounding-box coordinates and camera intrinsics (MLP encoder, 64D). The three vectors are concatenated into a 2624D shared representation, projected to a 256D latent space by the Fusion MLP, and decoded by two heads. The translation head does not output a position: it predicts a residual $\Delta\bt$ that is added to the geometric anchor $\ba$ (orange path), the per-axis median of the depth pixels inside the detected box back-projected through $\mathbf{K}$ (Sec.~\ref{sec:method_anchor}); no learned parameters take part in computing it. The rotation head outputs 6 values mapped to a valid $\SO$ matrix via differentiable Gram-Schmidt orthogonalization.}
     \label{fig:architecture}
 \end{figure*}
 
@@ -158,7 +158,7 @@ Raw depth maps from the LineMod sensor have invalid pixels (depth$=$0) caused by
 The 3.0\,m upper bound covers the entire working range of the LineMod dataset (objects at 0.3--0.7\,m, background $<$ 2\,m) while filtering out outlier sensor readings.
 
 \paragraph{Data Augmentation}
-To help the model generalize, the RGB branch gets GPU-accelerated photometric augmentation during training through a custom \texttt{GPUAugmentation} module (built with Kornia): a \texttt{ColorJitter} (brightness, contrast, saturation $=0.1$; hue $=0.05$; $p=0.3$) and \texttt{RandomGaussianNoise} ($\sigma=0.02$; $p=0.2$) are applied on-the-fly on GPU tensors, followed by ImageNet normalization. The depth map is left unaugmented to keep the metric accuracy of the sensor readings. As in the Phase~3 baseline (Sec.~\ref{sec:method_baseline}), no geometric augmentations are used.
+To help the model generalize, the RGB branch gets GPU-accelerated photometric augmentation during training through a custom \texttt{GPUAugmentation} module (built with Kornia): a \texttt{ColorJitter} (brightness, contrast, saturation $=0.1$; hue $=0.05$; $p=0.3$) and \texttt{RandomGaussianNoise} ($\sigma=0.02$; $p=0.2$) are applied on-the-fly on GPU tensors, followed by ImageNet normalization. The depth map is left unaugmented to keep the metric accuracy of the sensor readings. As in the RGB-only baseline (Sec.~\ref{sec:method_baseline}), no geometric augmentations are used.
 
 \paragraph{Global Fusion Architecture}
 Our architecture extracts global features from three input modalities through independent branches, as shown in Figure~\ref{fig:architecture}:
@@ -250,7 +250,7 @@ Depth maps are resized with nearest-neighbor interpolation: interpolating metric
 \subsection{6D Continuous Rotation Representation}
 \label{sec:method_rotation6d}
 
-Instead of predicting quaternions or a raw 9D matrix, the Phase~4 rotation head outputs 6 values that are converted to a valid rotation matrix through a differentiable Gram-Schmidt process~\cite{zhou2019continuity}. Given the raw output $\mathbf{a}_1, \mathbf{a}_2 \in \R^3$:
+Instead of predicting quaternions or a raw 9D matrix, the rotation head of the fusion model outputs 6 values that are converted to a valid rotation matrix through a differentiable Gram-Schmidt process~\cite{zhou2019continuity}. Given the raw output $\mathbf{a}_1, \mathbf{a}_2 \in \R^3$:
 \begin{align}
     \mathbf{b}_1 &= \frac{\mathbf{a}_1}{\|\mathbf{a}_1\|} \label{eq:gs1} \\[3pt]
     \mathbf{b}_2 &= \frac{\mathbf{a}_2 - (\mathbf{b}_1 \cdot \mathbf{a}_2)\,\mathbf{b}_1}{\|\mathbf{a}_2 - (\mathbf{b}_1 \cdot \mathbf{a}_2)\,\mathbf{b}_1\|} \label{eq:gs2} \\[3pt]
@@ -262,10 +262,10 @@ The resulting matrix $\bR = [\mathbf{b}_1 \mid \mathbf{b}_2 \mid \mathbf{b}_3]$ 
 \subsection{Loss Function for RGB-D Fusion}
 \label{sec:method_add_loss}
 
-Unlike the combined loss of the baseline (Eq.~\ref{eq:baseline_loss}), the Phase~4 model is trained directly with the ADD (Average Distance of Model Points) metric as the loss:
+Unlike the combined loss of the baseline (Eq.~\ref{eq:baseline_loss}), the fusion model is trained directly with the ADD (Average Distance of Model Points) metric as the loss:
 \begin{equation}
     \mathcal{L}_{\text{ADD}} = \frac{1}{N} \sum_{i=1}^{N} \|(\bR_{\text{pred}} \cdot \bp_i + \bt_{\text{pred}}) - (\bR_{\text{gt}} \cdot \bp_i + \bt_{\text{gt}})\|_2
     \label{eq:add_loss}
 \end{equation}
-where $\{\bp_i\}_{i=1}^N$ are $N$=500 points sampled from the 3D CAD model. This directly optimizes the same metric used for evaluation, removing the need for the ad-hoc balance parameter $\lambda$ between rotation and translation losses. We do not use this loss for the pure-RGB baseline (Phase 3) because its inherent depth estimation errors would cause huge metric distances (on the order of meters), leading to exploding gradients and unstable training. The combined loss of Phase 3, by isolating the rotation error (bounded at 1.0), serves as a key stabilization mechanism.
+where $\{\bp_i\}_{i=1}^N$ are $N$=500 points sampled from the 3D CAD model. This directly optimizes the same metric used for evaluation, removing the need for the ad-hoc balance parameter $\lambda$ between rotation and translation losses. We do not use this loss for the RGB-only baseline because its inherent depth estimation errors would cause huge metric distances (on the order of meters), leading to exploding gradients and unstable training. Its combined loss, by isolating the rotation error (bounded at 1.0), serves as a key stabilization mechanism.
 

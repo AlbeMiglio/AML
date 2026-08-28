@@ -18,20 +18,20 @@ We report the standard ADD accuracy: a pose counts as correct if the average dis
 All pose models are trained with Adam~\cite{kingma2014adam} (lr $10^{-4}$, weight decay $10^{-4}$), batch size 64, ADD loss (Eq.~\ref{eq:add_loss}), \texttt{ReduceLROnPlateau} scheduling, and early stopping on validation ADD (patience 30, epoch cap 400). Only photometric augmentation is used (Sec.~\ref{sec:method_fusion}).
 
 % ------------------------------------------------------------------
-\subsection{Phase 2: Object Detection}
+\subsection{Object Detection}
 \label{sec:exp_detection}
 
 YOLO11n is fine-tuned for 100 epochs on the official training frames only. On the 13{,}407 test images it achieves 99.5 mAP@50 and 94.2 mAP@50-95, with 99.98 precision and 99.99 recall, and finds a usable box for every frame (zero detection misses at confidence 0.25): this means the downstream pose evaluation can run fully end-to-end. Detection on LineMod works reliably even with limited training data; this is important for our pipeline because the bounding box is also used to compute the geometric anchor (Sec.~\ref{sec:method_anchor}).
 
 % ------------------------------------------------------------------
-\subsection{Phase 3: RGB-only Baseline}
+\subsection{RGB-only Baseline}
 \label{sec:exp_rgb_baseline}
 
-Table~\ref{tab:phase3} separates rotation from translation for the RGB-only baseline by swapping the translation source while keeping the predicted rotation fixed. Rotation is learnable from RGB crops: with an oracle translation the baseline reaches 76.7\% ADD(-S), and the score is the same whether the crop comes from ground-truth or predicted boxes --- more evidence that detection is not a bottleneck. Translation, on the other hand, does not work: the pinhole approximation drops to 7.5\% (because its spherical-object assumption fails on elongated shapes), and direct regression from RGB features to just 1.1\%. Phase~4 addresses this failure.
+Table~\ref{tab:phase3} separates rotation from translation for the RGB-only baseline by swapping the translation source while keeping the predicted rotation fixed. Rotation is learnable from RGB crops: with an oracle translation the baseline reaches 76.7\% ADD(-S), and the score is the same whether the crop comes from ground-truth or predicted boxes --- more evidence that detection is not a bottleneck. Translation, on the other hand, does not work: the pinhole approximation drops to 7.5\% (because its spherical-object assumption fails on elongated shapes), and direct regression from RGB features to just 1.1\%. The anchored fusion model of Sec.~\ref{sec:method_anchor} addresses this failure.
 
 \begin{table}[t]
     \centering
-    \caption{Phase-3 (RGB-only) on the official test set: predicted rotation combined with different translation sources. ADD(-S), \%.}
+    \caption{RGB-only baseline on the official test set: predicted rotation combined with different translation sources. ADD(-S), \%.}
     \label{tab:phase3}
     \small
     \begin{tabular}{@{}lc@{}}
@@ -47,7 +47,7 @@ Table~\ref{tab:phase3} separates rotation from translation for the RGB-only base
 \end{table}
 
 % ------------------------------------------------------------------
-\subsection{Phase 4: Ablation of the Translation Formulation}
+\subsection{Ablation of the Translation Formulation}
 \label{sec:exp_ablation}
 
 Table~\ref{tab:ablation} isolates the effect of the anchored residual formulation (Sec.~\ref{sec:method_anchor}) by keeping the architecture ($\sim$36M parameters), training data, and recipe fixed, and only changing the geometry input and the regression target. Two learning-free references anchor the table: copying the per-object \emph{mean training pose} scores 0.4\%, and combining the anchor with the mean training rotation scores 10.4\% --- the score you can get from the geometric prior alone, with zero learning.
