@@ -77,7 +77,7 @@ Table~\ref{tab:ablation} isolates the effect of the anchored residual formulatio
     \label{fig:ablationbars}
 \end{figure}
 
-Three key observations. First, direct absolute regression (6.8\%) performs \emph{worse} than the learning-free anchor reference (10.4\%): the network cannot even recover the information that the depth median already provides, which confirms that the problem is in how the target is formulated rather than in the amount of data. Second, anchoring the target turns the same model into an accurate estimator (95.2\%), with the mean error dropping from 69.7 to 9.1\,mm. Across three independent training seeds, the \texttt{norm} variant scores $94.9 \pm 0.2$\%, showing that the result is not seed-dependent.
+Two key observations. First, direct absolute regression (6.8\%) performs \emph{worse} than the learning-free anchor reference (10.4\%): the network cannot even recover the information that the depth median already provides, which confirms that the problem is in how the target is formulated rather than in the amount of data. Second, anchoring the target turns the same model into an accurate estimator (95.2\%), with the mean error dropping from 69.7 to 9.1\,mm. Across three independent training seeds, the \texttt{norm} variant scores $94.9 \pm 0.2$\%, showing that the result is not seed-dependent.
 
 % ------------------------------------------------------------------
 \subsection{End-to-End Evaluation}
