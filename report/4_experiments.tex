@@ -15,7 +15,7 @@ We evaluate on LineMod~\cite{hinterstoisser2012model} (13 objects, RGB-D, clutte
 We report the standard ADD accuracy: a pose counts as correct if the average distance between model points transformed by the predicted and ground-truth poses is below 10\% of the object diameter. For the two symmetric objects (eggbox, glue) we use the closest-point variant ADD-S. Diameters come from the dataset's \texttt{models\_info} file; $N{=}500$ model points are used throughout.
 
 \paragraph{Training}
-All pose models are trained with Adam (lr $10^{-4}$, weight decay $10^{-4}$), batch size 64, ADD loss (Eq.~\ref{eq:add_loss}), \texttt{ReduceLROnPlateau} scheduling, and early stopping on validation ADD (patience 30, epoch cap 400). Only photometric augmentation is used (Sec.~\ref{sec:method_fusion}).
+All pose models are trained with Adam~\cite{kingma2014adam} (lr $10^{-4}$, weight decay $10^{-4}$), batch size 64, ADD loss (Eq.~\ref{eq:add_loss}), \texttt{ReduceLROnPlateau} scheduling, and early stopping on validation ADD (patience 30, epoch cap 400). Only photometric augmentation is used (Sec.~\ref{sec:method_fusion}).
 
 % ------------------------------------------------------------------
 \subsection{Phase 2: Object Detection}
@@ -120,7 +120,7 @@ Table~\ref{tab:perclass} shows the per-class end-to-end results: the YOLO11n box
     \label{fig:perclassbar}
 \end{figure}
 
-The two weakest classes (duck 87.6\%, ape 89.8\%) are the two physically smallest objects: with diameters of 109 and 102\,mm, their ADD acceptance thresholds are only 10--11\,mm, so the same absolute error that passes on larger objects fails on them. This is a property of the relative threshold rather than a per-class failure: their mean errors (7--8\,mm) are in line with the rest of the dataset.
+The two weakest classes (duck 87.6\%, ape 89.8\%) are the two physically smallest objects: with diameters of 109 and 102\,mm, their ADD acceptance thresholds are only 10--11\,mm, so the same absolute error that passes on larger objects fails on them. This is a property of the relative threshold rather than a per-class failure: their mean errors (6--7\,mm) are in fact below the 9.1\,mm average over all classes (Table~\ref{tab:ablation}).
 
 \paragraph{Comparison with the state of the art}
 Table~\ref{tab:sota} puts our result in context. Among methods trained on \emph{real images only}, our anchored global fusion gets the highest accuracy, above the per-pixel variant of DenseFusion and comparable to its iteratively refined variant, without dense per-point fusion or a refinement stage. Keypoint-voting methods trained with large amounts of additional synthetic images per object~\cite{he2020pvn3d, he2021ffb6d} are still about 4.5 points ahead.
@@ -130,6 +130,7 @@ Table~\ref{tab:sota} puts our result in context. Among methods trained on \emph{
     \caption{ADD(-S) accuracy on LineMod under the official protocol. ``+synth'' methods add rendered synthetic training images; baseline numbers are taken from the respective original papers.}
     \label{tab:sota}
     \small
+    \resizebox{\columnwidth}{!}{%
     \begin{tabular}{@{}lccc@{}}
         \toprule
         \textbf{Method} & \textbf{Data} & \textbf{Refine} & \textbf{ADD(-S) \%} \\
@@ -141,7 +142,7 @@ Table~\ref{tab:sota} puts our result in context. Among methods trained on \emph{
         PVN3D~\cite{he2020pvn3d} & real+synth & -- & 99.4 \\
         FFB6D~\cite{he2021ffb6d} & real+synth & -- & 99.7 \\
         \bottomrule
-    \end{tabular}
+    \end{tabular}}
 \end{table}
 
 % ------------------------------------------------------------------
