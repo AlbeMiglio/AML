@@ -15,7 +15,7 @@ We evaluate on LineMod~\cite{hinterstoisser2012model} (13 objects, RGB-D, clutte
 We report the standard ADD accuracy: a pose counts as correct if the average distance between model points transformed by the predicted and ground-truth poses is below 10\% of the object diameter. For the two symmetric objects (eggbox, glue) we use the closest-point variant ADD-S. Diameters come from the dataset's \texttt{models\_info} file; $N{=}500$ model points are used throughout.
 
 \paragraph{Training}
-All pose models are trained with Adam (lr $10^{-4}$, weight decay $10^{-4}$), batch size 64, ADD loss (Eq.~\ref{eq:add_loss}), \texttt{ReduceLROnPlateau} scheduling, and early stopping on validation ADD (patience 30, epoch cap 400). Hyperparameters were chosen via grid search on the validation set. Only photometric augmentation is used (Sec.~\ref{sec:method_fusion}).
+All pose models are trained with Adam (lr $10^{-4}$, weight decay $10^{-4}$), batch size 64, ADD loss (Eq.~\ref{eq:add_loss}), \texttt{ReduceLROnPlateau} scheduling, and early stopping on validation ADD (patience 30, epoch cap 400). Only photometric augmentation is used (Sec.~\ref{sec:method_fusion}).
 
 % ------------------------------------------------------------------
 \subsection{Phase 2: Object Detection}

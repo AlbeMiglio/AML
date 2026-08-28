@@ -22,7 +22,7 @@ We test everything on the official LineMod split, training on 2{,}016 real image
 
 \begin{itemize}
     \item An \textbf{anchored residual formulation} for the translation target in global RGB-D fusion: with the same architecture, data, and training recipe, it raises ADD(-S) accuracy from 6.8\% (direct absolute regression) to 95.1\% in a full end-to-end evaluation with predicted detections.
-    \item A controlled \textbf{ablation comparing different geometry input formats} (raw metric depth, anchor-normalized depth, per-pixel XYZ maps), showing that anchoring the target --- not a richer input encoding --- is what makes the difference.
+    \item A controlled \textbf{ablation of the translation target}, bounded by two learning-free references: absolute regression scores \emph{below} what the depth median alone provides (6.8\% vs 10.4\%), locating the failure in how the target is formulated rather than in the amount of training data.
     \item A \textbf{memorization analysis}: retrieval- and oracle-nearest-neighbor baselines cap any pose-copying strategy at 7.1\% on this protocol, and accuracy stays stable up to $12^\circ$ of viewpoint gap, ruling out the possibility that the model is just memorizing training views.
     \item The system outperforms the per-pixel variant of DenseFusion (86.2\%)~\cite{wang2019densefusion} under the same protocol and data regime, while using only $\sim$36M parameters, with no per-point processing and no refinement stage.
 \end{itemize}
