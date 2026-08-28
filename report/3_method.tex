@@ -4,7 +4,7 @@
 \section{Methodology}
 \label{sec:method}
 
-Our proposed pipeline is divided into three consecutive phases: 2D Object Detection, RGB-only Baseline Pose Estimation, and RGB-D Global Fusion. Each phase builds upon the previous one, incrementally addressing the challenges of the 6D pose estimation task.
+Our pipeline is split into three consecutive phases: 2D Object Detection, RGB-only Baseline Pose Estimation, and RGB-D Global Fusion. Each phase builds on top of the previous one, progressively tackling the challenges of 6D pose estimation.
 
 
 
@@ -12,65 +12,65 @@ Our proposed pipeline is divided into three consecutive phases: 2D Object Detect
 \subsection{2D Object Detection}
 \label{sec:method_detection}
 
-The first stage of our pipeline aims to isolate target objects from the background clutter. We fine-tune a YOLO11n~\cite{ultralytics2024yolo11} model on the LineMod dataset~\cite{hinterstoisser2012model}, starting from pre-trained ImageNet weights.
+The first stage of the pipeline is to separate target objects from the background. We fine-tune a YOLO11n~\cite{ultralytics2024yolo11} model on the LineMod dataset~\cite{hinterstoisser2012model}, starting from pre-trained ImageNet weights.
 
 \paragraph{Dataset Format Conversion}
-The LineMod dataset provides bounding box annotations in the format $[x, y, w, h]$ (top-left corner plus width and height in pixels). YOLO requires normalized center coordinates $[c_x, c_y, w_n, h_n]$, where all values lie in $[0,1]$. The conversion is performed as:
+LineMod provides bounding box annotations as $[x, y, w, h]$ (top-left corner plus width and height in pixels). YOLO needs normalized center coordinates $[c_x, c_y, w_n, h_n]$, where all values are in $[0,1]$. We convert them as follows:
 \begin{equation}
     c_x = \frac{x + w/2}{W}, \quad c_y = \frac{y + h/2}{H}, \quad w_n = \frac{w}{W}, \quad h_n = \frac{h}{H}
     \label{eq:bbox_conv}
 \end{equation}
-where $W$ and $H$ denote the image dimensions (640$\times$480 for LineMod).
+where $W$ and $H$ are the image dimensions (640$\times$480 for LineMod).
 
 \paragraph{Metric Selection}
-Rather than relying solely on the standard mAP@50 metric, we prioritize the more stringent mAP@50-95 (mean AP computed over IoU thresholds from 0.5 to 0.95 with step 0.05). A tight bounding box is mathematically critical for the subsequent pose estimation stages: an oversized crop introduces background noise that can corrupt the rotation features extracted by the ResNet backbone.
+Instead of relying only on the standard mAP@50 metric, we focus on the stricter mAP@50-95 (mean AP computed over IoU thresholds from 0.5 to 0.95 in steps of 0.05). Getting a tight bounding box matters a lot for the downstream pose estimation: an oversized crop brings in background noise that can mess up the rotation features extracted by the ResNet backbone.
 
 % ------------------------------------------------------------------
 \subsection{RGB-only Baseline Pose Estimation}
 \label{sec:method_baseline}
 
 \paragraph{Architecture}
-We build a baseline model using a ResNet-50~\cite{he2016deep} backbone initialized with ImageNet~\cite{deng2009imagenet} (\texttt{IMAGENET1K\_V1}) pre-trained weights. The original 1000-class classification head is removed (replaced by \texttt{nn.Identity()}) to expose the 2048-dimensional feature vector. Two parallel linear regression heads are attached:
+The baseline model uses a ResNet-50~\cite{he2016deep} backbone initialized with ImageNet~\cite{deng2009imagenet} (\texttt{IMAGENET1K\_V1}) pre-trained weights. We remove the original 1000-class classification head (replacing it with \texttt{nn.Identity()}) to expose the 2048-dimensional feature vector. Two parallel linear regression heads are attached:
 
 \begin{itemize}
-    \item \textbf{Rotation Head} (\texttt{quat\_head}): $\R^{2048} \rightarrow \R^{4}$, producing a quaternion $\bq = (x, y, z, w)$, followed by L2-normalization in the forward pass to enforce unit length: $\hat{\bq} = \bq / \|\bq\|_2$.
+    \item \textbf{Rotation Head} (\texttt{quat\_head}): $\R^{2048} \rightarrow \R^{4}$, producing a quaternion $\bq = (x, y, z, w)$. An L2-normalization step in the forward pass ensures unit length: $\hat{\bq} = \bq / \|\bq\|_2$.
     \item \textbf{Translation Head} (\texttt{tvec\_head}): $\R^{2048} \rightarrow \R^{3}$, predicting the 3D translation vector $\bt = (t_x, t_y, t_z)$ in meters.
 \end{itemize}
 
 \paragraph{Input Pipeline}
-Each input image is cropped around the object using a square crop centered on the bounding box: $\text{side} = \max(w, h)$. The crop is resized to $224 \times 224$ pixels via bicubic interpolation and normalized with ImageNet mean and standard deviation. During training, we apply \texttt{ColorJitter} (brightness$=$0.2, contrast$=$0.2), \texttt{GaussianBlur} ($p$=0.2), and \texttt{RandomErasing} ($p$=0.25) to simulate illumination variations, sensor blur, and partial occlusions. Crucially, no geometric augmentations (horizontal flip, rotation) are applied, as these would invalidate the ground-truth 3D pose.
+Each input image is cropped around the object using a square crop centered on the bounding box: $\text{side} = \max(w, h)$. The crop is resized to $224 \times 224$ pixels with bicubic interpolation and normalized using ImageNet mean and standard deviation. During training, we apply \texttt{ColorJitter} (brightness$=$0.2, contrast$=$0.2), \texttt{GaussianBlur} ($p$=0.2), and \texttt{RandomErasing} ($p$=0.25) to simulate lighting changes, sensor blur, and partial occlusions. We deliberately avoid geometric augmentations (like horizontal flip or rotation) because those would change the ground-truth 3D pose.
 
 \paragraph{Loss Function}
-Training both heads simultaneously requires balancing their gradients. We employ a composite loss:
+Training both heads at the same time requires balancing their gradients. We use a combined loss:
 \begin{equation}
     \mathcal{L}_{\text{baseline}} = \mathcal{L}_{\text{rot}}(\bq_{\text{pred}}, \bq_{\text{gt}}) + \lambda \cdot \mathcal{L}_{\text{trans}}(\bt_{\text{pred}}, \bt_{\text{gt}})
     \label{eq:baseline_loss}
 \end{equation}
-where the rotation loss leverages the quaternion inner product:
+where the rotation loss uses the quaternion inner product:
 \begin{equation}
     \mathcal{L}_{\text{rot}} = 1 - |\bq_{\text{pred}} \cdot \bq_{\text{gt}}|
     \label{eq:rot_loss}
 \end{equation}
-The absolute value ensures invariance to the quaternion antipodal ambiguity ($\bq \equiv -\bq$). The translation loss is the Mean Squared Error (MSE):
+The absolute value handles the quaternion antipodal ambiguity ($\bq \equiv -\bq$). The translation loss is simply Mean Squared Error (MSE):
 \begin{equation}
     \mathcal{L}_{\text{trans}} = \text{MSE}(\bt_{\text{pred}}, \bt_{\text{gt}})
     \label{eq:trans_loss}
 \end{equation}
-The balance parameter $\lambda$ is set to 1.0. Since $\mathcal{L}_{\text{rot}} \in [0, 1]$ and $\mathcal{L}_{\text{trans}}$ operates in squared meters (typical values $\sim 0.01$--$0.1~\text{m}^2$ for LineMod objects at 0.3--0.7\,m distance), the two terms are naturally well-balanced.
+We set the balance parameter $\lambda$ to 1.0. Since $\mathcal{L}_{\text{rot}} \in [0, 1]$ and $\mathcal{L}_{\text{trans}}$ works in squared meters (typical values $\sim 0.01$--$0.1~\text{m}^2$ for LineMod objects at 0.3--0.7\,m distance), the two terms are naturally well-balanced without further tuning.
 
 \paragraph{Pinhole Translation Estimation}
-As an additional evaluation baseline, we implement a geometric depth estimation using the pinhole camera model. Given a bounding box with pixel size $s = \max(w, h)$ and the known real-world object diameter $d$, the depth is estimated as:
+As an extra evaluation baseline, we also implement a purely geometric depth estimate using the pinhole camera model. Given a bounding box with pixel size $s = \max(w, h)$ and the known real-world object diameter $d$, the depth is computed as:
 \begin{equation}
     Z = \frac{f_x \cdot d}{s}, \quad X = \frac{(u - p_x) \cdot Z}{f_x}, \quad Y = \frac{(v - p_y) \cdot Z}{f_y}
     \label{eq:pinhole}
 \end{equation}
-where $(u, v)$ is the bounding box center, $(p_x, p_y)$ is the camera principal point, and $(f_x, f_y)$ are the focal lengths. This approximation implicitly assumes a spherical object, leading to significant errors for elongated or asymmetric geometries.
+where $(u, v)$ is the bounding box center, $(p_x, p_y)$ is the camera principal point, and $(f_x, f_y)$ are the focal lengths. This approximation implicitly assumes the object is spherical, which leads to large errors for elongated or asymmetric shapes.
 
 % ------------------------------------------------------------------
 \subsection{RGB-D Global Fusion}
 \label{sec:method_fusion}
 
-To overcome the inherent depth ambiguity of monocular vision, we introduce a multi-modal architecture that fuses RGB and depth data, inspired by DenseFusion~\cite{wang2019densefusion} but implemented as a computationally efficient 2D global fusion. The detailed block diagram is reported in Figure~\ref{fig:architecture}.
+To get past the inherent depth ambiguity of using RGB alone, we introduce a multi-modal architecture that combines RGB and depth data. It is inspired by DenseFusion~\cite{wang2019densefusion} but implemented as a simpler 2D global fusion. The full block diagram is shown in Figure~\ref{fig:architecture}.
 
 \begin{figure*}[t]
     \centering
@@ -150,54 +150,54 @@ To overcome the inherent depth ambiguity of monocular vision, we introduce a mul
 \end{figure*}
 
 \paragraph{Depth Preprocessing}
-Raw depth maps from the LineMod sensor contain invalid pixels (depth$=$0) due to infrared reflections. We convert raw values to meters using the per-image depth scale from the dataset metadata, and apply a mathematical clipping filter:
+Raw depth maps from the LineMod sensor have invalid pixels (depth$=$0) caused by infrared reflections. We convert raw values to meters using the per-image depth scale from the dataset metadata, and clip to a useful range:
 \begin{equation}
     d_{\text{clean}} = \text{clip}\left(\frac{d_{\text{raw}} \cdot s_{\text{depth}}}{1000}, \; 0.0, \; 3.0\right) \; [\text{m}]
     \label{eq:depth_clip}
 \end{equation}
-The upper bound of 3.0\,m covers the entire operative range of the LineMod dataset (objects at 0.3--0.7\,m, background $<$ 2\,m) while neutralizing outlier readings.
+The 3.0\,m upper bound covers the entire working range of the LineMod dataset (objects at 0.3--0.7\,m, background $<$ 2\,m) while filtering out outlier sensor readings.
 
 \paragraph{Data Augmentation}
-To improve generalization, the RGB branch receives GPU-accelerated photometric augmentation during training via a custom \texttt{GPUAugmentation} module (implemented with Kornia): a \texttt{ColorJitter} (brightness, contrast, saturation $=0.1$; hue $=0.05$; $p=0.3$) and \texttt{RandomGaussianNoise} ($\sigma=0.02$; $p=0.2$) are applied on-the-fly on GPU tensors, followed by ImageNet normalization. The depth map is left unaugmented to preserve the metric integrity of the sensor readings. As in the Phase~3 baseline (Sec.~\ref{sec:method_baseline}), no geometric augmentations are applied.
+To help the model generalize, the RGB branch gets GPU-accelerated photometric augmentation during training through a custom \texttt{GPUAugmentation} module (built with Kornia): a \texttt{ColorJitter} (brightness, contrast, saturation $=0.1$; hue $=0.05$; $p=0.3$) and \texttt{RandomGaussianNoise} ($\sigma=0.02$; $p=0.2$) are applied on-the-fly on GPU tensors, followed by ImageNet normalization. The depth map is left unaugmented to keep the metric accuracy of the sensor readings. As in the Phase~3 baseline (Sec.~\ref{sec:method_baseline}), no geometric augmentations are used.
 
 \paragraph{Global Fusion Architecture}
-Our architecture extracts global features from three input modalities via independent branches, as illustrated in Figure~\ref{fig:architecture}:
+Our architecture extracts global features from three input modalities through independent branches, as shown in Figure~\ref{fig:architecture}:
 
 \paragraph{RGB Branch}
 The first feature extractor is a ResNet-50~\cite{he2016deep} backbone initialized with \texttt{IMAGENET1K\_V1} weights and fine-tuned end-to-end.
-The $224\!\times\!224\!\times\!3$ RGB crop is fed through the full residual network; the final fully connected classification layer is replaced by \texttt{nn.Identity()}, so the output of the global average pooling layer constitutes a compact 2048D feature vector $\mathbf{f}_{\text{rgb}} \in \R^{2048}$.
-The design rationale for choosing ResNet-50 over shallower alternatives is two-fold.
-First, the 2048D bottleneck provides sufficient representational capacity to encode the fine-grained texture and appearance cues (surface markings, color gradients) that are critical to distinguish the canonical orientation of textureful LineMod objects.
-Second, ImageNet pre-training transfers generic mid-level features (edges, blobs, textures) that generalize across the limited diversity of the LineMod training sequences, substantially reducing the risk of overfitting compared to training from scratch.
+The $224\!\times\!224\!\times\!3$ RGB crop goes through the full residual network; the final classification layer is replaced by \texttt{nn.Identity()}, so the global average pooling layer outputs a compact 2048D feature vector $\mathbf{f}_{\text{rgb}} \in \R^{2048}$.
+We chose ResNet-50 over shallower alternatives for two reasons.
+First, the 2048D bottleneck provides enough capacity to capture the fine-grained texture and appearance details (surface markings, color gradients) needed to distinguish the canonical orientation of textured LineMod objects.
+Second, ImageNet pre-training provides generic mid-level features (edges, blobs, textures) that transfer well to the limited diversity of the LineMod training sequences, significantly reducing the risk of overfitting compared to training from scratch.
 
 \paragraph{Depth Branch}
-The second extractor operates on the cropped and pre-processed depth map.
-Because standard pre-trained CNNs expect a 3-channel input, we replicate the single-channel depth map across all three channels before passing it through a ResNet-18~\cite{he2016deep} backbone, yielding a 512D global average pooling vector $\mathbf{f}_{\text{depth}} \in \R^{512}$.
-This channel-replication trick allows the use of ImageNet weights even for a fundamentally different modality, enabling the network to leverage pre-trained low-level filters (edge detectors) that naturally capture depth discontinuities and surface normal information encoded as intensity gradients in the depth image.
-Compared to a point-cloud-based branch (e.g., PointNet as in DenseFusion), a 2D CNN on the aligned depth crop is computationally lighter and architecturally uniform with the RGB branch, simplifying the fusion pipeline.
+The second extractor processes the cropped and pre-processed depth map.
+Since standard pre-trained CNNs expect a 3-channel input, we replicate the single-channel depth map across all three channels before feeding it through a ResNet-18~\cite{he2016deep} backbone, which produces a 512D global average pooling vector $\mathbf{f}_{\text{depth}} \in \R^{512}$.
+This channel-replication trick lets us reuse ImageNet weights even for a completely different modality, taking advantage of pre-trained low-level filters (edge detectors) that naturally pick up depth discontinuities and surface normal information encoded as intensity gradients in the depth image.
+Compared to a point-cloud-based branch (e.g., PointNet as in DenseFusion), a 2D CNN on the aligned depth crop is cheaper to run and keeps the same architecture style as the RGB branch, simplifying the overall pipeline.
 
 
 \paragraph{Meta-Branch}
-The third branch addresses a subtle but practically important limitation of pure appearance-based pose estimation: the projected size and position of an object in the image encode strong geometric priors about its absolute depth and in-plane location that are difficult to recover solely from convolutional features.
-To make this prior explicit, we construct an 8D metadata vector:
+The third branch addresses a subtle but important limitation of purely appearance-based pose estimation: the size and position of an object in the image encode strong geometric hints about its absolute depth and location, but these are hard to extract from convolutional features alone.
+To make this information explicit, we build an 8D metadata vector:
 \begin{equation}
 \mathbf{m} = \left[\frac{c_x}{W},\; \frac{c_y}{H},\; \frac{w}{W},\; \frac{h}{H},\; \frac{f_x}{1000},\; \frac{f_y}{1000},\; \frac{p_x}{W},\; \frac{p_y}{H}\right]
 \label{eq:meta}
 \end{equation}
-where $(c_x, c_y)$ and $(w, h)$ are the bounding-box center and dimensions normalized by the image size $(W, H)$, and $(f_x, f_y, p_x, p_y)$ are the focal lengths and principal point of the camera intrinsic matrix $\mathbf{K}$, also normalized to lie in a comparable numerical range.
-A two-layer MLP ($8 \rightarrow 128 \rightarrow 64$, with ReLU activations) maps $\mathbf{m}$ to a 64D latent prior $\mathbf{f}_{\text{meta}} \in \R^{64}$.
-The normalization of each component ensures that the MLP inputs are in $[0,1]$, avoiding gradient imbalances due to the different physical scales of pixel coordinates and focal-length values.
-By injecting camera intrinsics directly into the network, the model can implicitly learn a form of geometry-aware decoding: for instance, a larger bounding box with a longer focal length unambiguously signals a smaller depth, a constraint that the convolutional branches alone cannot fully exploit without explicit access to $\mathbf{K}$.
+where $(c_x, c_y)$ and $(w, h)$ are the bounding-box center and dimensions normalized by the image size $(W, H)$, and $(f_x, f_y, p_x, p_y)$ are the focal lengths and principal point from the camera intrinsic matrix $\mathbf{K}$, also normalized to keep them in a comparable numerical range.
+A two-layer MLP ($8 \rightarrow 128 \rightarrow 64$, with ReLU activations) maps $\mathbf{m}$ to a 64D latent vector $\mathbf{f}_{\text{meta}} \in \R^{64}$.
+Normalizing each component keeps the MLP inputs in $[0,1]$, preventing gradient imbalances caused by the different physical scales of pixel coordinates and focal-length values.
+By feeding camera intrinsics directly into the network, the model can implicitly learn geometry-aware decoding: for example, a larger bounding box combined with a longer focal length clearly signals a smaller depth, a constraint that the convolutional branches alone cannot fully exploit without explicit access to $\mathbf{K}$.
 
 The three feature vectors are concatenated into a single 2624D representation:
 \begin{equation}
     \mathbf{f}_{\text{fused}} = [\mathbf{f}_{\text{rgb}} \,\|\, \mathbf{f}_{\text{depth}} \,\|\, \mathbf{f}_{\text{meta}}] \in \R^{2624}
     \label{eq:concat}
 \end{equation}
-This fused vector is processed by an MLP ($2624 \rightarrow 512 \rightarrow 256$) to project it into a shared 256D latent space, which feeds the final translation and rotation heads.
+This fused vector is then processed by an MLP ($2624 \rightarrow 512 \rightarrow 256$) to project it into a shared 256D latent space, which feeds the final translation and rotation heads.
 
 \paragraph{Comparison with DenseFusion}
-Table~\ref{tab:densefusion_comparison} summarizes the architectural differences between the original DenseFusion~\cite{wang2019densefusion} and our Global Fusion approach.
+Table~\ref{tab:densefusion_comparison} summarizes the main differences between the original DenseFusion~\cite{wang2019densefusion} and our Global Fusion approach.
 
 \begin{table}[t]
     \centering
@@ -223,48 +223,49 @@ Table~\ref{tab:densefusion_comparison} summarizes the architectural differences 
 \subsection{Anchored Residual Translation Regression}
 \label{sec:method_anchor}
 
-Directly regressing the absolute translation $\bt \in \R^3$ from globally pooled features requires the network to reconstruct a metric position roughly one meter away from the camera out of a 256D latent vector --- a task that, as our ablation shows (Sec.~\ref{sec:exp_ablation}), fails in the low-data regime of the official LineMod protocol regardless of the input modalities. The depth crop, however, already \emph{contains} most of the answer: the visible surface of the object lies within a few centimeters of its center.
+Directly predicting the absolute translation $\bt \in \R^3$ from globally pooled features requires the network to reconstruct a metric position roughly one meter from the camera out of a 256D latent vector --- a task that, as our ablation shows (Sec.~\ref{sec:exp_ablation}), fails when training data is limited under the official LineMod protocol, regardless of the input modalities used. The depth crop, however, already \emph{contains} most of the answer: the visible surface of the object is within a few centimeters of its center.
 
-We therefore anchor the regression to the observed geometry. Given the detected bounding box and the depth map, we back-project all valid depth pixels inside the (tight) box through the camera intrinsics $\mathbf{K}$ and take the per-axis median:
+So we anchor the regression to the observed geometry. Given the detected bounding box and the depth map, we back-project all valid depth pixels inside the (tight) box through the camera intrinsics $\mathbf{K}$ and take the per-axis median:
 \begin{equation}
     \ba = \operatorname{median}_{(u,v)\,\in\,\text{box},\ d(u,v)>0}
     \left[ \tfrac{(u-p_x)\,d}{f_x},\ \tfrac{(v-p_y)\,d}{f_y},\ d \right]^\top
     \label{eq:anchor}
 \end{equation}
-The anchor $\ba$ is a 3D point on the visible surface of the object: on the official training set, its median distance from the ground-truth object center is 17.8\,mm (95th percentile: 45.7\,mm). The translation head then predicts only the residual $\Delta\bt$, and the final estimate is $\bt = \ba + \Delta\bt$. The learning problem shifts from reconstructing an absolute meter-scale position to estimating a centimeter-scale surface-to-center offset --- a quantity that depends only on the object shape and viewpoint, and is therefore learnable from few examples. The median is robust both to background pixels included in the box and to the localization jitter of a real detector; the loss (Sec.~\ref{sec:method_add_loss}) is computed on the composed $\bt$, so training is end-to-end. If the box contains fewer than 20 valid depth pixels, the anchor falls back to zero and the head degenerates gracefully to absolute regression.
+The anchor $\ba$ is a 3D point on the visible surface of the object: on the official training set, its median distance from the ground-truth object center is 17.8\,mm (95th percentile: 45.7\,mm). The translation head then only needs to predict the residual $\Delta\bt$, and the final estimate is $\bt = \ba + \Delta\bt$. This shifts the learning problem from reconstructing an absolute meter-scale position to estimating a centimeter-scale surface-to-center offset --- something that depends only on the object shape and viewpoint, and is therefore learnable from few examples. The median is robust both to background pixels included in the box and to the localization jitter of a real detector; the loss (Sec.~\ref{sec:method_add_loss}) is computed on the composed $\bt$, so training remains end-to-end. If the box contains fewer than 20 valid depth pixels, the anchor falls back to zero and the head gracefully degrades to absolute regression.
 
 % ------------------------------------------------------------------
 \subsection{Geometry Input Representations}
 \label{sec:method_geometry_inputs}
 
-The depth branch can consume the observed geometry in different formats, which we compare in a controlled ablation (Sec.~\ref{sec:exp_ablation}) while keeping the architecture, the number of parameters, and the training recipe identical:
+The depth branch can take the observed geometry in different formats, which we compare in a controlled ablation (Sec.~\ref{sec:exp_ablation}) while keeping the architecture, the number of parameters, and the training recipe identical:
 
 \begin{itemize}
-    \item \textbf{Raw depth} (\texttt{raw}): the metric depth crop in meters, channel-replicated to three channels; the translation head regresses the absolute position (no anchor). This is the direct-regression baseline.
-    \item \textbf{Anchored normalized depth} (\texttt{norm}): the depth crop centered on the anchor depth and scaled, $d' = \operatorname{clip}\!\big((d - a_z)/s,\,[-4,4]\big)$ with $s = 0.15$\,m ($\approx$ object radius), invalid pixels set to $0$; the head regresses the residual $\Delta\bt$.
+    \item \textbf{Raw depth} (\texttt{raw}): the metric depth crop in meters, channel-replicated to three channels; the translation head predicts the absolute position (no anchor). This is the direct-regression baseline.
+    \item \textbf{Anchored normalized depth} (\texttt{norm}): the depth crop centered on the anchor depth and scaled, $d' = \operatorname{clip}\!\big((d - a_z)/s,\,[-4,4]\big)$ with $s = 0.15$\,m ($\approx$ object radius), invalid pixels set to $0$; the head predicts the residual $\Delta\bt$.
 \end{itemize}
 
-Depth maps are resized with nearest-neighbor interpolation: metric values interpolated across object boundaries would fabricate 3D points that exist nowhere in the scene.
+Depth maps are resized with nearest-neighbor interpolation: interpolating metric values across object boundaries would create 3D points that don't exist anywhere in the actual scene.
 
 % ------------------------------------------------------------------
 \subsection{6D Continuous Rotation Representation}
 \label{sec:method_rotation6d}
 
-Instead of predicting quaternions or a raw 9D matrix, our Phase~4 model's rotation head outputs 6 values that are mapped to a valid rotation matrix via a differentiable Gram-Schmidt process~\cite{zhou2019continuity}. Given the raw output $\mathbf{a}_1, \mathbf{a}_2 \in \R^3$:
+Instead of predicting quaternions or a raw 9D matrix, the Phase~4 rotation head outputs 6 values that are converted to a valid rotation matrix through a differentiable Gram-Schmidt process~\cite{zhou2019continuity}. Given the raw output $\mathbf{a}_1, \mathbf{a}_2 \in \R^3$:
 \begin{align}
     \mathbf{b}_1 &= \frac{\mathbf{a}_1}{\|\mathbf{a}_1\|} \label{eq:gs1} \\[3pt]
     \mathbf{b}_2 &= \frac{\mathbf{a}_2 - (\mathbf{b}_1 \cdot \mathbf{a}_2)\,\mathbf{b}_1}{\|\mathbf{a}_2 - (\mathbf{b}_1 \cdot \mathbf{a}_2)\,\mathbf{b}_1\|} \label{eq:gs2} \\[3pt]
     \mathbf{b}_3 &= \mathbf{b}_1 \times \mathbf{b}_2 \label{eq:gs3}
 \end{align}
-The resulting matrix $\bR = [\mathbf{b}_1 \mid \mathbf{b}_2 \mid \mathbf{b}_3]$ is guaranteed to belong to $\SO$ by construction ($\det(\bR) = +1$, orthonormal columns). This representation is continuous and differentiable, ensuring stable gradient flow during backpropagation.
+The resulting matrix $\bR = [\mathbf{b}_1 \mid \mathbf{b}_2 \mid \mathbf{b}_3]$ is guaranteed to be in $\SO$ by construction ($\det(\bR) = +1$, orthonormal columns). This representation is continuous and differentiable, which means stable gradient flow during backpropagation.
 
 % ------------------------------------------------------------------
 \subsection{Loss Function for RGB-D Fusion}
 \label{sec:method_add_loss}
 
-Unlike the composite loss of the baseline (Eq.~\ref{eq:baseline_loss}), the Phase~4 model is trained directly with the ADD (Average Distance of Model Points) metric as the loss function:
+Unlike the combined loss of the baseline (Eq.~\ref{eq:baseline_loss}), the Phase~4 model is trained directly with the ADD (Average Distance of Model Points) metric as the loss:
 \begin{equation}
     \mathcal{L}_{\text{ADD}} = \frac{1}{N} \sum_{i=1}^{N} \|(\bR_{\text{pred}} \cdot \bp_i + \bt_{\text{pred}}) - (\bR_{\text{gt}} \cdot \bp_i + \bt_{\text{gt}})\|_2
     \label{eq:add_loss}
 \end{equation}
-where $\{\bp_i\}_{i=1}^N$ are $N$=500 points sampled from the 3D CAD model. This formulation directly optimizes the metric used for evaluation, eliminating the need for the ad-hoc balancing parameter $\lambda$ between rotation and translation losses. We do not apply this loss to the pure-RGB baseline (Phase 3) because its inherent inaccuracies in depth estimation would cause disproportionate metric errors (in the order of meters), leading to exploding gradients and training instability. The composite loss of Phase 3, by isolating the rotation error (upper-bounded to 1.0), serves as a fundamental stabilization mechanism.
+where $\{\bp_i\}_{i=1}^N$ are $N$=500 points sampled from the 3D CAD model. This directly optimizes the same metric used for evaluation, removing the need for the ad-hoc balance parameter $\lambda$ between rotation and translation losses. We do not use this loss for the pure-RGB baseline (Phase 3) because its inherent depth estimation errors would cause huge metric distances (on the order of meters), leading to exploding gradients and unstable training. The combined loss of Phase 3, by isolating the rotation error (bounded at 1.0), serves as a key stabilization mechanism.
+

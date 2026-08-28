@@ -9,25 +9,25 @@
 \label{sec:exp_protocol}
 
 \paragraph{Dataset and split}
-We evaluate on LineMod~\cite{hinterstoisser2012model} (13 objects, RGB-D, cluttered scenes) under the \emph{official} per-object split shipped with the dataset --- the same protocol as DenseFusion~\cite{wang2019densefusion}. About 15\% of the frames of each sequence are used for training and the remaining 85\% for testing: 2{,}373 training and 13{,}407 test images overall. A validation set (357 images) is carved out of the training pool for model selection and early stopping. The test set is never used for any training or selection decision, and we use \textbf{no synthetic or rendered training images}: all learning happens on the 2{,}016 real frames. Split integrity (disjointness and per-object counts) is asserted programmatically at data-loading time.
+We evaluate on LineMod~\cite{hinterstoisser2012model} (13 objects, RGB-D, cluttered scenes) using the \emph{official} per-object split that comes with the dataset --- the same protocol used by DenseFusion~\cite{wang2019densefusion}. About 15\% of each object's frames are for training and the remaining 85\% for testing: 2{,}373 training and 13{,}407 test images in total. A validation set (357 images) is carved out of the training pool for model selection and early stopping. The test set is never used for any training or selection decision, and we use \textbf{no synthetic or rendered training images}: all learning happens on the 2{,}016 real frames. We check split integrity (no overlaps and correct per-object counts) programmatically at data-loading time.
 
 \paragraph{Metric}
-We report the standard ADD accuracy: a pose is correct if the average distance between model points transformed by the predicted and ground-truth poses is below 10\% of the object diameter. For the two symmetric objects (eggbox, glue) we use the closest-point variant ADD-S. Diameters are taken from the dataset's \texttt{models\_info} file; $N{=}500$ model points are used throughout.
+We report the standard ADD accuracy: a pose counts as correct if the average distance between model points transformed by the predicted and ground-truth poses is below 10\% of the object diameter. For the two symmetric objects (eggbox, glue) we use the closest-point variant ADD-S. Diameters come from the dataset's \texttt{models\_info} file; $N{=}500$ model points are used throughout.
 
 \paragraph{Training}
-All pose models are trained with Adam (lr $10^{-4}$, weight decay $10^{-4}$), batch size 64, ADD loss (Eq.~\ref{eq:add_loss}), \texttt{ReduceLROnPlateau} scheduling, and early stopping on validation ADD (patience 30, epoch cap 400). The optimal hyperparameter values were determined via a Grid Search on the validation set. Photometric augmentation only (Sec.~\ref{sec:method_fusion}).
+All pose models are trained with Adam (lr $10^{-4}$, weight decay $10^{-4}$), batch size 64, ADD loss (Eq.~\ref{eq:add_loss}), \texttt{ReduceLROnPlateau} scheduling, and early stopping on validation ADD (patience 30, epoch cap 400). Hyperparameters were chosen via grid search on the validation set. Only photometric augmentation is used (Sec.~\ref{sec:method_fusion}).
 
 % ------------------------------------------------------------------
 \subsection{Phase 2: Object Detection}
 \label{sec:exp_detection}
 
-YOLO11n is fine-tuned for 100 epochs on the official training frames only. On the 13{,}407 test images it reaches 99.5 mAP@50 and 94.2 mAP@50-95, with 99.98 precision and 99.99 recall, and produces a usable box for every frame (zero detection misses at confidence 0.25): the downstream pose evaluation can therefore be fully end-to-end. Detection on LineMod remains reliable even in the low-data regime; this matters for our pipeline because the box is also used to compute the geometric anchor (Sec.~\ref{sec:method_anchor}).
+YOLO11n is fine-tuned for 100 epochs on the official training frames only. On the 13{,}407 test images it achieves 99.5 mAP@50 and 94.2 mAP@50-95, with 99.98 precision and 99.99 recall, and finds a usable box for every frame (zero detection misses at confidence 0.25): this means the downstream pose evaluation can run fully end-to-end. Detection on LineMod works reliably even with limited training data; this is important for our pipeline because the bounding box is also used to compute the geometric anchor (Sec.~\ref{sec:method_anchor}).
 
 % ------------------------------------------------------------------
 \subsection{Phase 3: RGB-only Baseline}
 \label{sec:exp_rgb_baseline}
 
-Table~\ref{tab:phase3} disentangles rotation and translation for the RGB-only baseline by swapping the translation source while keeping the predicted rotation fixed. Rotation is learnable from RGB crops: with an oracle translation the baseline reaches 76.7\% ADD(-S), and the score is identical whether the crop comes from ground-truth or predicted boxes --- further evidence that detection is not a bottleneck. Translation is not: the pinhole approximation collapses to 7.5\% (its spherical-object assumption fails on elongated geometries), and direct regression from RGB features to 1.1\%. Phase~4 addresses this failure mode.
+Table~\ref{tab:phase3} separates rotation from translation for the RGB-only baseline by swapping the translation source while keeping the predicted rotation fixed. Rotation is learnable from RGB crops: with an oracle translation the baseline reaches 76.7\% ADD(-S), and the score is the same whether the crop comes from ground-truth or predicted boxes --- more evidence that detection is not a bottleneck. Translation, on the other hand, does not work: the pinhole approximation drops to 7.5\% (because its spherical-object assumption fails on elongated shapes), and direct regression from RGB features to just 1.1\%. Phase~4 addresses this failure.
 
 \begin{table}[t]
     \centering
@@ -50,7 +50,7 @@ Table~\ref{tab:phase3} disentangles rotation and translation for the RGB-only ba
 \subsection{Phase 4: Ablation of the Translation Formulation}
 \label{sec:exp_ablation}
 
-Table~\ref{tab:ablation} isolates the contribution of the anchored residual formulation (Sec.~\ref{sec:method_anchor}) by keeping the architecture ($\sim$36M parameters), the training data, and the recipe fixed, and varying only the geometry input and the regression target. Two learning-free references bound the table: copying the per-object \emph{mean training pose} scores 0.4\%, and combining the anchor with the mean training rotation scores 10.4\% --- the score obtainable from the geometric prior alone, with zero learning.
+Table~\ref{tab:ablation} isolates the effect of the anchored residual formulation (Sec.~\ref{sec:method_anchor}) by keeping the architecture ($\sim$36M parameters), training data, and recipe fixed, and only changing the geometry input and the regression target. Two learning-free references anchor the table: copying the per-object \emph{mean training pose} scores 0.4\%, and combining the anchor with the mean training rotation scores 10.4\% --- the score you can get from the geometric prior alone, with zero learning.
 
 \begin{table}[t]
     \centering
@@ -77,13 +77,13 @@ Table~\ref{tab:ablation} isolates the contribution of the anchored residual form
     \label{fig:ablationbars}
 \end{figure}
 
-Three observations. First, direct absolute regression (6.8\%) performs \emph{below} the learning-free anchor reference (10.4\%): the network cannot even recover the information that the depth median already provides, confirming that the failure is in the formulation of the target rather than in the amount of data. Second, anchoring the target transforms the same model into an accurate estimator (95.2\%), with the mean error dropping from 69.7 to 9.1\,mm. Across three independent training seeds, the \texttt{norm} variant scores $94.9 \pm 0.2$\%, indicating that the result is not seed-dependent.
+Three key observations. First, direct absolute regression (6.8\%) performs \emph{worse} than the learning-free anchor reference (10.4\%): the network cannot even recover the information that the depth median already provides, which confirms that the problem is in how the target is formulated rather than in the amount of data. Second, anchoring the target turns the same model into an accurate estimator (95.2\%), with the mean error dropping from 69.7 to 9.1\,mm. Across three independent training seeds, the \texttt{norm} variant scores $94.9 \pm 0.2$\%, showing that the result is not seed-dependent.
 
 % ------------------------------------------------------------------
 \subsection{End-to-End Evaluation}
 \label{sec:exp_results}
 
-Table~\ref{tab:perclass} reports the per-class end-to-end results: the YOLO11n boxes are used for the crop, the metadata vector, \emph{and} the anchor, and any detection miss would count as a pose failure. The degradation with respect to ground-truth boxes is negligible ($95.2 \rightarrow 95.1$ for \texttt{norm}): the median-based anchor is robust to the localization jitter of the real detector.
+Table~\ref{tab:perclass} shows the per-class end-to-end results: the YOLO11n boxes are used for the crop, the metadata vector, \emph{and} the anchor, and any detection miss would count as a pose failure. The drop compared to ground-truth boxes is negligible ($95.2 \rightarrow 95.1$ for \texttt{norm}): the median-based anchor handles the localization jitter of the real detector well.
 
 \begin{table}[t]
     \centering
@@ -120,10 +120,10 @@ Table~\ref{tab:perclass} reports the per-class end-to-end results: the YOLO11n b
     \label{fig:perclassbar}
 \end{figure}
 
-The two weakest classes (duck 87.6\%, ape 89.8\%) are the two physically smallest objects: with diameters of 109 and 102\,mm, their ADD acceptance thresholds are 10--11\,mm, so the same absolute error that passes on larger objects fails on them. This is a property of the relative threshold rather than a per-class failure mode: their mean errors (7--8\,mm) are in line with the rest of the dataset.
+The two weakest classes (duck 87.6\%, ape 89.8\%) are the two physically smallest objects: with diameters of 109 and 102\,mm, their ADD acceptance thresholds are only 10--11\,mm, so the same absolute error that passes on larger objects fails on them. This is a property of the relative threshold rather than a per-class failure: their mean errors (7--8\,mm) are in line with the rest of the dataset.
 
 \paragraph{Comparison with the state of the art}
-Table~\ref{tab:sota} positions our result under the official protocol. Among methods trained on \emph{real images only}, our anchored global fusion obtains the highest accuracy, above the per-pixel variant of DenseFusion and comparable to its iteratively refined variant, without dense per-point fusion or a refinement stage. Keypoint-voting methods trained with large amounts of additional synthetic images per object~\cite{he2020pvn3d, he2021ffb6d} remain about 4.5 points ahead.
+Table~\ref{tab:sota} puts our result in context. Among methods trained on \emph{real images only}, our anchored global fusion gets the highest accuracy, above the per-pixel variant of DenseFusion and comparable to its iteratively refined variant, without dense per-point fusion or a refinement stage. Keypoint-voting methods trained with large amounts of additional synthetic images per object~\cite{he2020pvn3d, he2021ffb6d} are still about 4.5 points ahead.
 
 \begin{table}[t]
     \centering
@@ -148,16 +148,16 @@ Table~\ref{tab:sota} positions our result under the official protocol. Among met
 \subsection{Memorization Analysis}
 \label{sec:exp_memorization}
 
-Because LineMod sequences are densely sampled videos, a high accuracy could in principle reflect retrieval of similar training views rather than genuine pose estimation. We quantify this hypothesis directly with three measurements.
+Since LineMod sequences are densely sampled videos, a high accuracy could in theory just reflect the model retrieving similar training views rather than actually estimating the pose. We test this hypothesis directly with three measurements.
 
 \paragraph{Nearest-neighbor bounds}
-For each test frame we retrieve the most visually similar training frame of the same object ($32{\times}32$ grayscale crop, cosine similarity) and copy its pose. This \emph{retrieval NN} baseline scores \textbf{2.3\%} ADD(-S). We then compute an \emph{oracle NN}, which copies the pose of the training frame closest to the test frame in pose space: this is the ceiling of \emph{any} strategy that answers with a memorized training pose, however the retrieval is implemented. The oracle scores \textbf{7.1\%}, with the symmetric ADD-S classes accounting for most of it. A pose-copying explanation of our 95.1\% result can therefore be excluded.
+For each test frame we find the most visually similar training frame of the same object ($32{\times}32$ grayscale crop, cosine similarity) and copy its pose. This \emph{retrieval NN} baseline scores \textbf{2.3\%} ADD(-S). We also compute an \emph{oracle NN}, which copies the pose of the training frame closest to the test frame in pose space: this is the ceiling of \emph{any} strategy that answers with a memorized training pose, no matter how the retrieval works. The oracle scores \textbf{7.1\%}, with the symmetric ADD-S classes accounting for most of it. This rules out a pose-copying explanation for our 95.1\% result.
 
 \paragraph{Why memorization fails here}
-The official split leaves substantial viewpoint gaps: the median angular distance between a test frame and its nearest training view is $7.4^\circ$ (90th percentile: $10.5^\circ$). At these gaps, both the viewpoint and the camera-frame translation change enough that a copied pose violates the 10\%-diameter threshold almost everywhere.
+The official split leaves big viewpoint gaps: the median angular distance between a test frame and its nearest training view is $7.4^\circ$ (90th percentile: $10.5^\circ$). At these gaps, both the viewpoint and the camera-frame translation change enough that a copied pose misses the 10\%-diameter threshold almost everywhere.
 
 \paragraph{Accuracy vs.\ viewpoint novelty}
-Figure~\ref{fig:gapcurve} bins the end-to-end accuracy of our model by the angular distance to the nearest training view. The profile is flat --- 94--97\% for all bins up to $12^\circ$, which cover 96.4\% of the test set --- followed by a graceful degradation in the extrapolation tail (85--86\% at $12$--$14^\circ$; 67--72\% beyond $14^\circ$, 327 samples). The profile is reproduced identically across the three training seeds. A memorizing model would degrade sharply already at small angular distances; the observed behavior is instead consistent with a model that interpolates between viewpoints, and degrades only where actual extrapolation is required.
+Figure~\ref{fig:gapcurve} bins the end-to-end accuracy of our model by the angular distance to the nearest training view. The profile is flat --- 94--97\% for all bins up to $12^\circ$, which cover 96.4\% of the test set --- followed by a gradual drop in the extrapolation tail (85--86\% at $12$--$14^\circ$; 67--72\% beyond $14^\circ$, 327 samples). This profile is the same across all three training seeds. A model that just memorizes would degrade sharply even at small angular distances; what we see instead is consistent with a model that interpolates between viewpoints, and only degrades where real extrapolation is needed.
 
 \begin{figure}[t]
     \centering
@@ -165,3 +165,4 @@ Figure~\ref{fig:gapcurve} bins the end-to-end accuracy of our model by the angul
     \caption{End-to-end ADD(-S) accuracy as a function of the angular distance between each test view and its nearest training view, for three independent training seeds. The profile is flat up to $12^\circ$ (96.4\% of the test set) and degrades gracefully in the extrapolation tail; the dotted line marks the oracle nearest-neighbor bound, the ceiling of any memorization strategy.}
     \label{fig:gapcurve}
 \end{figure}
+
