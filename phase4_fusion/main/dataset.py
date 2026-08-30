@@ -50,6 +50,10 @@ class LineModDatasetRGBD(Dataset):
             mesh = trimesh.load(ply_path)
             points = mesh.vertices
             
+            # Sampled once per object at construction, not per __getitem__, so every
+            # sample of a given object is scored against the same point set.
+            # The draw is not seeded: two evaluations of the same checkpoint can differ
+            # by ~0.02 accuracy points. Harmless, but it explains non-identical reruns.
             if len(points) > self.n_points:
                 idx = np.random.choice(len(points), self.n_points, replace=False)
                 points = points[idx]
@@ -62,7 +66,9 @@ class LineModDatasetRGBD(Dataset):
         """Backproject the depth inside the TIGHT bbox and take the per-axis median:
         a 3D point on the visible surface of the object. The head then regresses the
         (small) surface-to-center offset instead of an absolute position ~1m away.
-        Median over the tight box, not the square crop: less background inside."""
+        Median over the tight box, not the square crop: the square crop deliberately
+        includes background to preserve the aspect ratio, and that background would
+        drag the median off the object."""
         h_img, w_img = depth_meters.shape[:2]
         x, y, w, h = bbox
         x0, y0 = max(0, int(x)), max(0, int(y))

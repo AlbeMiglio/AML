@@ -1,4 +1,10 @@
 def select_detection_for_object(result, obj_id):
+    """Highest-confidence detection of the requested object, or None.
+
+    LineMod numbers its objects from 1, the YOLO classes from 0, hence the shift.
+    Other objects are visible in the frame and get detected too, so filtering by
+    class is what keeps the crop on the object we are actually posing.
+    """
     target_cls = obj_id - 1
     best_box, best_conf = None, -1.0
     for box in result.boxes:

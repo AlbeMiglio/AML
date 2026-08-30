@@ -39,7 +39,7 @@ def train():
     # di prima, quindi il tetto di epoche sale e a decidere quando fermarsi è la validation.
     EPOCHS = int(os.environ.get("EPOCHS", "400"))
     EARLY_STOP_PATIENCE = int(os.environ.get("EARLY_STOP_PATIENCE", "30"))
-    # raw = baseline del paper · norm = depth ancorata (A) · xyz = mappa XYZ (B)
+    # raw = absolute regression (paper baseline) · norm = anchored normalized depth
     DEPTH_MODE = os.environ.get("DEPTH_MODE", "raw")
     # Multi-seed: SEED fissa il caso, RUN_TAG separa checkpoint e run wandb — senza tag
     # un secondo run dello stesso modo farebbe resume del checkpoint del primo.
@@ -56,7 +56,7 @@ def train():
     
     RESULTS_DIR = "results_4_main"
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    # Per-mode files: the raw/norm/xyz ablation runs must not overwrite each other.
+    # Per-mode files: the raw and norm ablation runs must not overwrite each other.
     SAVE_PATH_BEST = os.path.join(RESULTS_DIR, f"pose_rgbd_fusion_best_{DEPTH_MODE}{RUN_TAG}.pth")
     CHECKPOINT_PATH = os.path.join(RESULTS_DIR, f"pose_rgbd_checkpoint_{DEPTH_MODE}{RUN_TAG}.pth")
     LOG_FILE = os.path.join(RESULTS_DIR, f"train_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
@@ -149,6 +149,11 @@ def train():
             with autocast(DEVICE.type, dtype=AMP_DTYPE, enabled=AMP_ENABLED):
                 pred_T, pred_R = model(rgb, depth, meta)
                 # la testa regredisce il residuo rispetto all'ancora 3D (zero in raw)
+                # The head outputs a residual; the pose is anchor + residual. In raw
+                # mode t_anchor is all zeros, so this same line also covers the plain
+                # absolute-regression baseline -- one code path, no branching.
+                # The loss below sees the COMPOSED translation, so the anchor is inside
+                # the graph and the network learns to compensate a poor anchor.
                 pred_T = pred_T + t_anchor
                 batch_loss = criterion(pred_R, pred_T, gt_R, gt_T, model_points)
 

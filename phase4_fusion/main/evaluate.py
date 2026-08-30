@@ -1,3 +1,18 @@
+"""SUPERSEDED -- do not use for reported numbers. Kept for history only.
+
+Three reasons this script disagrees with the paper:
+  1. accuracy is averaged over the samples it managed to process; a detection miss
+     is counted and printed separately but dropped from the denominator, which
+     inflates the score;
+  2. it loads results_4_main/pose_rgbd_fusion_best.pth, from before the checkpoints
+     were split per depth mode (..._best_norm.pth);
+  3. it uses weights/yolo/best.pt, the detector trained before the official split.
+
+Use instead:
+    eval_official.py    ground-truth boxes -- the pose head alone
+    eval_endtoend.py    YOLO boxes for crop, metadata and anchor; misses count as
+                        failures. This is the 95.1 reported in the paper.
+"""
 import torch
 import numpy as np
 import cv2

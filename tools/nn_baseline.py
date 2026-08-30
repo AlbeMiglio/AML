@@ -21,7 +21,7 @@ import numpy as np
 import cv2
 
 sys.path.insert(0, os.path.expanduser("~/PycharmProjects/AML"))
-from common.pose_metrics import pose_error, SYMMETRIC_OBJ_IDS
+from common.pose_metrics import pose_error
 import trimesh
 
 ROOT = os.path.expanduser("~/PycharmProjects/AML/datasets/linemod/Linemod_preprocessed")

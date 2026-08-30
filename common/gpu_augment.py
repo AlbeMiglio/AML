@@ -19,9 +19,15 @@ class GPUAugmentation(nn.Module):
             data_keys=["image"],
             same_on_batch=False,
         )
+        # Buffers, not plain tensors: they follow the model on .to(device) and are
+        # carried in state_dict, so a reloaded checkpoint normalizes identically.
         self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
         self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
 
+    # NOTE: normalization lives HERE, not in the Dataset. Evaluation must therefore
+    # call this module with training=False instead of skipping it -- feeding raw
+    # [0,1] images to an ImageNet-pretrained backbone costs most of the accuracy
+    # and nothing in the run looks broken while it happens.
     def forward(self, rgb_uint8: torch.Tensor, training: bool) -> torch.Tensor:
         rgb = rgb_uint8.float() / 255.0
         if training:

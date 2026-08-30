@@ -42,7 +42,10 @@ class RGBD_FusionPredictor(nn.Module):
     def forward(self, rgb_crop, depth_crop, meta_info):
         """
         rgb_crop: (B, 3, 224, 224)
-        depth_crop: (B, 3, 224, 224)
+        depth_crop: (B, 3, 224, 224) -- the Dataset yields ONE channel and every caller
+            replicates it with .expand(-1, 3, -1, -1), a stride-0 view that costs no
+            memory. Three channels only because the ImageNet-pretrained ResNet-18
+            expects them; the three are identical.
         meta_info: (B, 8) - normalized [cx, cy, w, h, fx, fy, px, py]
         """
         f_rgb = self.rgb_backbone(rgb_crop)       # 2048

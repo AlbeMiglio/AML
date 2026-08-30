@@ -132,6 +132,11 @@ def train():
         total_epochs = EPOCHS
 
     for epoch in range(start_epoch, total_epochs):
+        # Two-stage fine-tuning. For the first FREEZE_EPOCHS only the two heads learn:
+        # they start from random weights, and letting their large early gradients reach
+        # the pretrained backbone would wash out the ImageNet features. Once the heads
+        # are sensible the backbone joins in, at a tenth of the learning rate so it is
+        # nudged rather than overwritten -- which matters with 2k training images.
         if epoch >= FREEZE_EPOCHS and not backbone_unfrozen:
             log_and_print("Unfreezing ResNet-50 backbone for fine-tuning...", LOG_FILE)
             backbone_unfrozen = True

@@ -5,7 +5,7 @@ pose head without a detector in the loop — the row comparable with DenseFusion
 per-pixel (86.2) on the same dataset and split.
 
 Env:
-    DEPTH_MODE  raw | norm | xyz   (must match the checkpoint being evaluated)
+    DEPTH_MODE  raw | norm   (must match the checkpoint being evaluated)
     CKPT        checkpoint path, default results_4_main/pose_rgbd_fusion_best_<mode>.pth
 
 Units: model points and translations in meters (dataset divides by 1000);

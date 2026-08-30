@@ -1,10 +1,8 @@
 import torch
 from torch.utils.data import Dataset
 import os
-import yaml
 from PIL import Image
 import torchvision.transforms as transforms
-import numpy as np
 
 from phase3_baseline.losses import matrix_to_quaternion
 
@@ -68,6 +66,10 @@ class LineModDataset(Dataset):
             img_tensor = self.transform(img_resized)
             
             R_mat = torch.tensor(target_ann['cam_R_m2c'], dtype=torch.float32).view(3, 3)
+            # MILLIMETERS, as stored in gt.yml. Phase 4 divides by 1000 inside its own
+            # Dataset, this one does not: the conversion happens in train.py instead.
+            # Anything reading "T" from here is therefore in mm -- as is models_info.yml,
+            # so the pinhole helpers and the 3D box renderer stay consistent with it.
             T = torch.tensor(target_ann['cam_t_m2c'], dtype=torch.float32)
             
             quaternion_gt = matrix_to_quaternion(R_mat)

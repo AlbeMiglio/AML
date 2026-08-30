@@ -162,6 +162,10 @@ def main():
             w_norm = w / img_w
             h_norm = h / img_h
 
+            # LineMod numbers objects from 1, YOLO expects classes from 0.
+            # The mapping is a plain shift, not a lookup: ids 3 and 7 (bowl, cup) are
+            # absent from this copy of the dataset, so their class indices simply never
+            # appear in any label file. Harmless -- YOLO only learns the classes it sees.
             class_id = obj_id - 1
             unique_name = f"obj{obj_id:02d}_{img_id:04d}"
 

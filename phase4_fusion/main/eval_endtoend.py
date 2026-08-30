@@ -5,7 +5,7 @@ from the detector's box. A detection miss counts as a FAILURE for that sample â€
 skipping it (as the old evaluate.py did) silently inflates accuracy.
 
 Env:
-    DEPTH_MODE    raw | norm | xyz          (default norm)
+    DEPTH_MODE    raw | norm                (default norm)
     CKPT          pose checkpoint           (default results_4_main/pose_rgbd_fusion_best_<mode>.pth)
     YOLO_WEIGHTS  detector weights          (default runs/detect/linemod_yolo_run/weights/best.pt)
     CONF          YOLO confidence threshold (default 0.25)
@@ -55,20 +55,12 @@ def build_inputs(rgb_img, depth_meters, bbox, K, depth_mode, anchor_fn):
     if depth_mode == "raw":
         depth_tensor = torch.from_numpy(depth_crop).float().unsqueeze(0)
     else:
+        # Anchored mode: the depth is re-expressed relative to the anchor, so the
+        # network sees the local shape and not where the object sits in the room.
         anchor = anchor_fn(depth_meters, bbox, K)
         t_anchor = torch.from_numpy(anchor)
-        if depth_mode == "norm":
-            dn = np.where(depth_crop > 0, (depth_crop - anchor[2]) / SCALE, 0.0)
-            depth_tensor = torch.from_numpy(np.clip(dn, -4.0, 4.0).astype(np.float32)).unsqueeze(0)
-        else:  # xyz
-            fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
-            u = l + (np.arange(224, dtype=np.float32) + 0.5) * (r - l) / 224
-            v = t + (np.arange(224, dtype=np.float32) + 0.5) * (b - t) / 224
-            uu, vv = np.meshgrid(u, v)
-            valid = depth_crop > 0
-            xyz = np.stack([(uu - cx) * depth_crop / fx, (vv - cy) * depth_crop / fy, depth_crop])
-            xyz = np.clip((xyz - anchor.reshape(3, 1, 1)) / SCALE, -4.0, 4.0) * valid[None]
-            depth_tensor = torch.from_numpy(xyz.astype(np.float32))
+        dn = np.where(depth_crop > 0, (depth_crop - anchor[2]) / SCALE, 0.0)
+        depth_tensor = torch.from_numpy(np.clip(dn, -4.0, 4.0).astype(np.float32)).unsqueeze(0)
 
     meta = build_meta_tensor(bbox, K, rgb_img.shape)
     if meta is None:
@@ -78,6 +70,8 @@ def build_inputs(rgb_img, depth_meters, bbox, K, depth_mode, anchor_fn):
 
 def main():
     depth_mode = os.environ.get("DEPTH_MODE", "norm")
+    if depth_mode not in ("raw", "norm"):
+        raise SystemExit(f"DEPTH_MODE must be raw or norm, got {depth_mode!r}")
     ckpt = os.environ.get("CKPT", f"results_4_main/pose_rgbd_fusion_best_{depth_mode}.pth")
     yolo_w = os.environ.get("YOLO_WEIGHTS", "runs/detect/linemod_yolo_run/weights/best.pt")
     conf_thr = float(os.environ.get("CONF", "0.25"))

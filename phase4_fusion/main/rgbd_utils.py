@@ -33,6 +33,10 @@ def fetch_sample_info(info_cache, obj_id, sample_id):
     return None
 
 def convert_depth_to_meters(depth_raw, depth_scale):
+    """Raw sensor integers -> meters. depth_scale is per-image (the sequences were
+    not all captured the same way). Zero means "no reading", not "zero distance".
+    The 3 m ceiling is past the whole scene (objects 0.3-0.7 m, background < 2 m),
+    so it only flattens sensor outliers."""
     depth = depth_raw.astype(np.float32)
     if depth.ndim == 3:
         depth = depth[:, :, 0]
@@ -40,6 +44,13 @@ def convert_depth_to_meters(depth_raw, depth_scale):
     return np.clip(depth_m, 0.0, 3.0)
 
 def square_crop_coords(bbox, img_shape):
+    """Square region of side max(w, h) centred on the box.
+
+    It ENLARGES the short side to include more background -- it does not stretch the
+    box -- so the object keeps its proportions through the later resize to 224x224.
+    The only exception is an object near a frame edge, where the square gets clipped
+    and the resize is then slightly anisotropic.
+    """
     h_img, w_img = img_shape[:2]
     x, y, w, h = bbox
     side = max(w, h)
