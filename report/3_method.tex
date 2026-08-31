@@ -178,16 +178,13 @@ Compared to a point-cloud-based branch (e.g., PointNet as in DenseFusion), a 2D 
 
 
 \paragraph{Meta-Branch}
-The third branch addresses a subtle but important limitation of purely appearance-based pose estimation: the size and position of an object in the image encode strong geometric hints about its absolute depth and location, but these are hard to extract from convolutional features alone.
-To make this information explicit, we build an 8D metadata vector:
+Cropping the object throws away two strong cues: how large it appeared and where it sat in the frame. Both constrain its position in space, and neither survives the resize to a fixed $224\times224$. We restore them explicitly as an 8D vector:
 \begin{equation}
 \mathbf{m} = \left[\frac{c_x}{W},\; \frac{c_y}{H},\; \frac{w}{W},\; \frac{h}{H},\; \frac{f_x}{1000},\; \frac{f_y}{1000},\; \frac{p_x}{W},\; \frac{p_y}{H}\right]
 \label{eq:meta}
 \end{equation}
 where $(c_x, c_y)$ and $(w, h)$ are the bounding-box center and dimensions normalized by the image size $(W, H)$, and $(f_x, f_y, p_x, p_y)$ are the focal lengths and principal point from the camera intrinsic matrix $\mathbf{K}$, also normalized to keep them in a comparable numerical range.
-A two-layer MLP ($8 \rightarrow 128 \rightarrow 64$, with ReLU activations) maps $\mathbf{m}$ to a 64D latent vector $\mathbf{f}_{\text{meta}} \in \R^{64}$.
-Normalizing each component keeps the MLP inputs in $[0,1]$, preventing gradient imbalances caused by the different physical scales of pixel coordinates and focal-length values.
-By feeding camera intrinsics directly into the network, the model can implicitly learn geometry-aware decoding: for example, a larger bounding box combined with a longer focal length clearly signals a smaller depth, a constraint that the convolutional branches alone cannot fully exploit without explicit access to $\mathbf{K}$.
+A two-layer MLP ($8 \rightarrow 128 \rightarrow 64$, ReLU) maps $\mathbf{m}$ to $\mathbf{f}_{\text{meta}} \in \R^{64}$. Every component is normalized so that focal lengths of several hundred pixels do not dominate the gradients of coordinates below one. The intrinsics matter as much as the box: a large box means a near object only once the focal length is known, and the convolutional branches never see $\mathbf{K}$.
 
 The three feature vectors are concatenated into a single 2624D representation:
 \begin{equation}
