@@ -23,7 +23,7 @@ LineMod provides bounding box annotations as $[x, y, w, h]$ (top-left corner plu
 where $W$ and $H$ are the image dimensions (640$\times$480 for LineMod).
 
 \paragraph{Metric Selection}
-Instead of relying only on the standard mAP@50 metric, we focus on the stricter mAP@50-95 (mean AP computed over IoU thresholds from 0.5 to 0.95 in steps of 0.05). Getting a tight bounding box matters a lot for the downstream pose estimation: an oversized crop brings in background noise that can mess up the rotation features extracted by the ResNet backbone.
+Instead of relying only on the standard mAP@50 metric, we focus on the stricter mAP@50-95 (mean AP computed over IoU thresholds from 0.5 to 0.95 in steps of 0.05). Getting a tight bounding box matters a lot for the downstream pose estimation: an oversized crop brings in background noise that can corrupt the rotation features extracted by the ResNet backbone.
 
 % ------------------------------------------------------------------
 \subsection{RGB-only Baseline Pose Estimation}
